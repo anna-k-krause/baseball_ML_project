@@ -5,9 +5,10 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 from sklearn.ensemble import RandomForestClassifier
-
-# from sklearn.pipeline import Pipeline
+from sklearn.naive_bayes import GaussianNB
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeClassifier
 
 
 def print_heading(title):
@@ -33,7 +34,6 @@ def load_dataset():
 
 
 def simple_summary_statistics(iris_df):
-
     # Converting Dataframe to Numpy Array
     iris_df_numerical = iris_df.drop(["Class"], axis=1)
     iris_arr = iris_df_numerical.to_numpy()
@@ -53,7 +53,6 @@ def simple_summary_statistics(iris_df):
 
 
 def chart_creation(iris_df):
-
     print_heading("Iris Data Charts")
 
     # Scatterplot Chart
@@ -116,29 +115,90 @@ def models(iris_df):
     # Setting the target
     y = iris_df[["Class"]].values
 
-    # Setting up Scalar
-    std_scaler = StandardScaler()
-    x_scaled = std_scaler.fit_transform(x_orig)
-    # source : https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
-
     # Random Forest
-    random_forest = RandomForestClassifier(random_state=1234)
-    random_forest.fit(x_scaled, y.ravel())
-    prediction = random_forest.predict(x_scaled)
-    probability = random_forest.predict_proba(x_scaled)
 
-    print_heading("Model Predictions")
-    print(f"Classes: {random_forest.classes_}")
-    print(f"Probability: {probability}")
-    print(f"Predictions: {prediction}")
+    print_heading("Random Forest Model via Pipeline Predictions")
+    rf_pipeline = Pipeline(
+        [
+            ("Standard Scalar", StandardScaler()),
+            ("RandomForest", RandomForestClassifier(random_state=1234)),
+        ]
+    )
+    rf_pipeline.fit(x_orig, np.ravel(y))
+    # This .ravel() was suggested by PyCharm when I got an error message
+
+    rf_probability = rf_pipeline.predict_proba(x_orig)
+    rf_prediction = rf_pipeline.predict(x_orig)
+    rf_score = rf_pipeline.score(x_orig, y)
+    print(f"Probability: {rf_probability}")
+    print(f"Predictions: {rf_prediction}")
+    print(f"Score: {rf_score}")
+
+    # Decision Tree
+
+    print_heading("Decision Tree Model via Pipeline Predictions")
+    dt_pipeline = Pipeline(
+        [
+            ("Standard Scalar", StandardScaler()),
+            ("Decision Tree", DecisionTreeClassifier(random_state=123)),
+        ]
+    )
+    dt_pipeline.fit(x_orig, np.ravel(y))
+    # This .ravel() was suggested by PyCharm when I got an error message
+
+    dt_probability = dt_pipeline.predict_proba(x_orig)
+    dt_prediction = dt_pipeline.predict(x_orig)
+    dt_score = dt_pipeline.score(x_orig, y)
+    print(f"Probability: {dt_probability}")
+    print(f"Predictions: {dt_prediction}")
+    print(f"Score: {dt_score}")
+
+    # Gaussian Naive Bayes
+
+    print_heading("Gaussian Naive Bayes Model via Pipeline Predictions")
+    gnb_pipeline = Pipeline(
+        [
+            ("Standard Scalar", StandardScaler()),
+            ("Gaussian Naive Bayes", GaussianNB()),
+        ]
+    )
+    gnb_pipeline.fit(x_orig, np.ravel(y))
+    # This .ravel() was suggested by PyCharm when I got an error message
+
+    gnb_probability = gnb_pipeline.predict_proba(x_orig)
+    gnb_prediction = gnb_pipeline.predict(x_orig)
+    gnb_score = gnb_pipeline.score(x_orig, y)
+    print(f"Probability: {gnb_probability}")
+    print(f"Predictions: {gnb_prediction}")
+    print(f"Score: {gnb_score}")
+
+
+def MR_Plot(iris_df):
+
+    # Setting New Boolean Columns
+    iris_df["IS_Iris-virginica"] = np.where(iris_df["Class"] == "Iris-virginica", 1, 0)
+    iris_df["IS_Iris-versicolor"] = np.where(
+        iris_df["Class"] == "Iris-versicolor", 1, 0
+    )
+    iris_df["IS_Iris-setosa"] = np.where(iris_df["Class"] == "Iris-setosa", 1, 0)
+    print(iris_df)
+
+    fig_mr = px.histogram(iris_df, x="Petal_Length", nbins=10)
+    fig_mr.write_html(file="mr_test.html", include_plotlyjs="cdn")
 
 
 def main():
-    """Main program"""
+
+    # Increase pandas print viewport (so we see more on the screen)
+    pd.set_option("display.max_rows", 10)
+    pd.set_option("display.max_columns", 500)
+    pd.set_option("display.width", 1_000)
+
     iris_df = load_dataset()
     simple_summary_statistics(iris_df)
     chart_creation(iris_df)
     models(iris_df)
+    MR_Plot(iris_df)
     return 0
 
 
