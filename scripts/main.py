@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import sys
+
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+
+# from plotly.subplots import make_subplots
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.pipeline import Pipeline
@@ -173,7 +178,7 @@ def models(iris_df):
     print(f"Score: {gnb_score}")
 
 
-def MR_Plot(iris_df):
+def mr_plot(iris_df):
 
     # Setting New Boolean Columns
     iris_df["IS_Iris-virginica"] = np.where(iris_df["Class"] == "Iris-virginica", 1, 0)
@@ -181,10 +186,63 @@ def MR_Plot(iris_df):
         iris_df["Class"] == "Iris-versicolor", 1, 0
     )
     iris_df["IS_Iris-setosa"] = np.where(iris_df["Class"] == "Iris-setosa", 1, 0)
+    # source : https://www.statology.org/pandas-create-boolean-column-based-on-condition/
+
+    # Set New Mean Columns
+    iris_df["IS_Iris-setosa_mean"] = iris_df["IS_Iris-setosa"].mean()
+
     print(iris_df)
 
-    fig_mr = px.histogram(iris_df, x="Petal_Length", nbins=10)
-    fig_mr.write_html(file="mr_test.html", include_plotlyjs="cdn")
+    # numpy histogram first, then go here
+    column_names = ["Pop", "HistValue"]
+    df_sl = pd.DataFrame(np.histogram(iris_df["Sepal_Length"], bins=10)).transpose()
+
+    df_sl.columns = column_names
+    print(df_sl.head(15))
+
+    # plt = go.Figure(data=go.Bar(x=np_hist_sl[1], y=np_hist_sl[0]))
+    plt = go.Figure(data=go.Bar(x=df_sl["HistValue"], y=df_sl["Pop"]))
+
+    plt.write_html(file="test_mr.html", include_plotlyjs="cdn")
+
+    # Mean of each bin
+    # sl_bin_mean = df_sl.mean(axis=0)
+    # print(sl_bin_mean)
+
+
+# plt_line = go.Figure(data=go.Line(x=np_hist_sl[1], y=np_hist_sl[0]))
+
+"""
+    # Set of Base Plots
+
+    fig_mr2 = px.line(
+        iris_df,
+        y=iris_df["IS_Iris-setosa_mean"]
+    )
+    fig_mr2.write_html(file="test_mean_line.html", include_plotlyjs="cdn")
+
+
+    # Combine Base Plots into 1 Chart
+    combo_fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    combo_fig.add_trace(
+        go.Figure(data=[go.Histogram(x=iris_df["Petal_Length"])]), secondary_y=True
+    )
+
+    combo_fig.add_trace(
+        go.Scatter(
+            iris_df,
+            y=iris_df["IS_Iris-setosa_mean"]
+        ),
+        secondary_y=False
+    )
+
+    combo_fig.update_xaxes(title_text="Predictor Bin")
+
+    combo_fig.update_yaxes(title_text="Response", secondary_y=False)
+    combo_fig.update_yaxes(title_text="Population", secondary_y=True)
+    combo_fig.write_html(file="test_combo.html", include_plotlyjs="cdn")
+"""
 
 
 def main():
@@ -198,9 +256,9 @@ def main():
     simple_summary_statistics(iris_df)
     chart_creation(iris_df)
     models(iris_df)
-    MR_Plot(iris_df)
+    # mr_plot(iris_df)
     return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
