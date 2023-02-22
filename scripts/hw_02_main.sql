@@ -10,25 +10,27 @@ USE baseball;
 -- Homework 2 Solutions
 
 -- Historic Batting Average
+-- get each hit and at bat sum from the batter_counts table
+-- hat totals = hits + at bats totals
 WITH hat_totals AS (
     SELECT batter, SUM(Hit) AS hitSum, SUM(atBat) AS batSum
     FROM batter_counts
     GROUP BY 1
 )
-
-SELECT batter, hitSum / batSum AS historic_batting_average
+-- calculate the batting average from each overall sum
+SELECT batter, COALESCE(hitSum / batSum, 0) AS historic_batting_average
 FROM hat_totals
-WHERE batSum >= 1
 ORDER BY 1
 ;
--- I took out the players who were subbed in for walks that had a zero
 
 -- Annual Batting Average
+-- get all years from game dates in the game table using date_format
 WITH game_year AS (
     SELECT game_id, DATE_FORMAT(local_date, '%Y') AS game_year
     FROM game
 )
 ,
+-- calculate the yearly sum of hits and at bats for each batter
 year_hat_totals AS (
     SELECT b.batter, g.game_year, SUM(b.Hit) AS hitSum, SUM(b.atBat) AS batSum
     FROM batter_counts b
@@ -36,37 +38,56 @@ year_hat_totals AS (
             ON b.game_id = g.game_id
     GROUP BY 1, 2
 )
-
-SELECT batter, game_year, hitSum / batSum AS annual_batting_average
+-- calculate the batting average from each overall sum
+SELECT batter, game_year, COALESCE(hitSum / batSum, 0) AS annual_batting_avg
 FROM year_hat_totals
 WHERE batSum >= 1
 GROUP BY 1, 2
 ORDER BY 1
 ;
--- I took out the players who were subbed in for walks that had a zero
 -- source : https://stackoverflow.com/questions/26322398/trunc-date-field-in-mysql-like-oracle
 
 -- Last 100 Days Rolling Average
-WITH last_100_games AS (
+WITH all_dates AS (
     SELECT b.batter, g.local_date, b.Hit, b.atBat
     FROM batter_counts b
         JOIN game g
             ON b.game_id = g.game_id
-    WHERE g.local_date BETWEEN (SELECT MAX(g.local_date) - INTERVAL 100 DAY FROM game g)
-        AND (SELECT MAX(g.local_date) FROM game g)
-    ORDER BY 1, 2 DESC
+-- WHERE batter = '116338'
 )
 ,
-stats_totals AS (
-    SELECT batter, SUM(Hit) AS hitSum, SUM(atBat) AS batSum
-    FROM last_100_games
-    GROUP BY 1
+duplicate_dates AS (
+    SELECT *
+    FROM all_dates
 )
-
-SELECT batter, hitSum / batSum AS rolling_batting_average
-FROM stats_totals
-WHERE batSum >= 1
-ORDER BY 1
+,
+last_100_games AS (
+    SELECT a.batter, a.local_date, COALESCE(d.hit, 0) AS joined_hit, COALESCE(d.atBat, 0) AS joined_atBat
+    FROM all_dates a
+        LEFT JOIN duplicate_dates d
+            ON d.batter = a.batter
+                AND d.local_date BETWEEN DATE_ADD(a.local_date, INTERVAL - 100 DAY)
+                AND DATE_ADD(a.local_date, INTERVAL - 1 DAY)
+    ORDER BY 2
+)
+,
+last_100_hat_totals AS (
+    SELECT batter, local_date, SUM(joined_hit) AS hitSum, SUM(joined_atBat) AS batSum
+    FROM last_100_games
+    GROUP BY 1, 2
+    ORDER BY 2
+)
+SELECT batter, local_date, COALESCE(hitSum / batSum, 0) AS rolling_avg
+FROM last_100_hat_totals
+ORDER BY 1, 2
 ;
--- I took out the players who were subbed in for walks that had a zero
--- Source : https://stackoverflow.com/questions/33753047/how-to-find-moving-average-for-all-the-days-for-the-past-30-days-with-gap-in-dat
+-- source : https://stackoverflow.com/questions/19299039/12-month-moving-average-by-person-date
+
+-- ASK SEAN
+-- INTERVAL (is 100 days okay or 101 days?)
+-- What is the situation with the indexes? I do not understand how they apply to things
+
+-- 116338
+-- 120074
+-- 110029
+-- 110683
