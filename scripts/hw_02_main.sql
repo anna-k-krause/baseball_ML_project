@@ -91,3 +91,6 @@ ORDER BY 1, 2
 -- 120074
 -- 110029
 -- 110683
+
+
+CREATE TABLE new_table LIKE original_table;
