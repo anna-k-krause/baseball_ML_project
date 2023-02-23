@@ -93,4 +93,4 @@ ORDER BY 1, 2
 -- 110683
 
 
-CREATE TABLE new_table LIKE original_table;
+-- CREATE TABLE new_table LIKE original_table;
