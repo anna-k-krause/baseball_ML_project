@@ -12,10 +12,12 @@ USE baseball;
 -- Historic Batting Average ------
 
 -- Get totals from each
-CREATE TABLE IF NOT EXISTS hat_totals AS
+        -- A: Could be done in one Table 
+CREATE TABLE IF NOT EXISTS hat_totals AS        -- A: If the table already exists and you want to change something here it does not change the table,
+                                                -- A: Usually good but for the assignments its easier to test if you use CREATE OR REPLACE TABLE
 SELECT batter, SUM(Hit) AS hitSum, SUM(atBat) AS batSum
 FROM batter_counts
-GROUP BY 1
+GROUP BY 1        -- A: Group By a name so its easier to read
 ;
 -- calculate the batting average from each overall sum
 -- I used a case when and coalesce to solve the divide by 0 error
@@ -27,6 +29,7 @@ ORDER BY 1
 
 -- Annual Batting Average -------
 -- get each year of each game from the local_date column
+        -- A: Again could be done in one Table
 CREATE TABLE IF NOT EXISTS game_year AS
 SELECT game_id, DATE_FORMAT(local_date, '%Y') AS game_year
 FROM game
@@ -42,6 +45,7 @@ GROUP BY 1, 2
 -- calculate the batting average from each overall sum for each year
 -- I used a case when and coalesce to solve the divide by 0 error
 CREATE TABLE IF NOT EXISTS yearly_bat_avg AS
+        -- A: Parantheses around your CASE WHEN would increase readability
 SELECT batter, game_year, CASE WHEN batSum = 0 THEN 0 ELSE COALESCE(hitSum / batSum, 0) END AS annual_batting_avg
 FROM year_hat_totals
 GROUP BY 1, 2
@@ -50,6 +54,7 @@ ORDER BY 1
 
 -- Last 100 Days Rolling Average ------
 -- Get all dates
+        -- A: would have been possible with two tables
 CREATE TABLE IF NOT EXISTS all_game_dates AS
 SELECT b.batter, b.game_id, g.local_date, b.Hit, b.atBat
 FROM batter_counts b
@@ -57,6 +62,7 @@ FROM batter_counts b
         ON b.game_id = g.game_id
 ;
 -- Manage Primary Keys and Add Indexes
+        -- A: Good use of primary key and index
 ALTER TABLE all_game_dates ADD PRIMARY KEY (batter, game_id), ADD INDEX batter_index_test(batter);
 
 -- source : https://stackoverflow.com/questions/5277597/what-column-to-index-on-and-making-table-search-fast
@@ -65,6 +71,7 @@ ALTER TABLE all_game_dates ADD PRIMARY KEY (batter, game_id), ADD INDEX batter_i
 -- I used a self join and a between statement to grab the last 100 days
 -- used coalesce to convert null values to zero for the sum
 -- source : https://stackoverflow.com/questions/19299039/12-month-moving-average-by-person-date
+        -- A: last 100 days not games
 CREATE TABLE IF NOT EXISTS last_100_games AS
 SELECT a.batter, a.local_date, COALESCE(d.hit, 0) AS joined_hit, COALESCE(d.atBat, 0) AS joined_atBat
 FROM all_game_dates a
