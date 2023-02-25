@@ -9,7 +9,7 @@ USE baseball;
 CREATE OR REPLACE TABLE hat_totals AS
 SELECT batter, SUM(Hit) AS hitSum, SUM(atBat) AS batSum
 FROM batter_counts
-GROUP BY 1        -- A: Group By a name so its easier to read
+GROUP BY 1
 ;
 -- calculate the batting average from each overall sum
 -- I used a case when and coalesce to solve the divide by 0 error
@@ -21,7 +21,6 @@ ORDER BY 1
 
 -- Annual Batting Average -------
 -- get each year of each game from the local_date column
-
 CREATE OR REPLACE TABLE game_year AS
 SELECT game_id, DATE_FORMAT(local_date, '%Y') AS game_year
 FROM game
@@ -36,7 +35,6 @@ GROUP BY 1, 2
 ;
 -- calculate the batting average from each overall sum for each year
 -- I used a case when and coalesce to solve the divide by 0 error
-
 CREATE OR REPLACE TABLE yearly_bat_avg AS
 SELECT batter, game_year, (CASE WHEN batSum = 0 THEN 0 ELSE COALESCE(hitSum / batSum, 0) END) AS annual_batting_avg
 FROM year_hat_totals
