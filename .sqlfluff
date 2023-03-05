@@ -31,3 +31,6 @@ indented_joins = True
 [sqlfluff:rules:L003]
 # Disable evaluating indentation on hanging idents
 hanging_indents = False
+
+[sqlfluff:rules:L029]
+ignore_words = INDEX
