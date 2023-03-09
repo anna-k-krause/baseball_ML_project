@@ -96,14 +96,15 @@ def main():
         FROM batter_counts b
             JOIN game g
                 ON b.game_id = g.game_id
-        WHERE batter = '440361'
+        -- WHERE batter = '110029'
+        ORDER BY batter, local_date
         """
     )
     baseball_df.show()
+    # baseball_df.printSchema()
     baseball_df.createOrReplaceTempView("joined_baseball")
     baseball_df.persist(StorageLevel.MEMORY_ONLY)
 
-    '''
     last_100_dates_df = spark.sql(
         """
         SELECT a.batter
@@ -113,14 +114,42 @@ def main():
         FROM joined_baseball a
             LEFT JOIN joined_baseball d
                 ON d.batter = a.batter
-                    AND d.local_date BETWEEN DATE_ADD(a.local_date, INTERVAL - 101 DAY)
-                    AND DATE_ADD(a.local_date, INTERVAL - 1 DAY)
+                    AND d.local_date BETWEEN DATE_ADD(a.local_date, -101)
+                    AND DATE_ADD(a.local_date, -1)
         """
     )
     last_100_dates_df.show()
     last_100_dates_df.createOrReplaceTempView("last_100_dates")
     last_100_dates_df.persist(StorageLevel.MEMORY_ONLY)
-    '''
+
+    last_100_hat_totals_df = spark.sql(
+        """
+        SELECT batter
+            , local_date
+            , SUM(joined_hit) AS hitSum
+            , SUM(joined_atBat) AS batSum
+        FROM last_100_dates
+        GROUP BY batter, local_date
+        """
+    )
+    last_100_hat_totals_df.show()
+    last_100_hat_totals_df.createOrReplaceTempView("last_100_hat_totals")
+    last_100_hat_totals_df.persist(StorageLevel.MEMORY_ONLY)
+
+    last_100_avg_df = spark.sql(
+        """
+        SELECT batter
+            , local_date
+            , (CASE WHEN batSum = 0 THEN 0 ELSE COALESCE(hitSum / batSum, 0) END)
+            AS rolling_avg
+        FROM last_100_hat_totals
+        ORDER BY batter, local_date
+        """
+    )
+    last_100_avg_df.show()
+    last_100_avg_df.createOrReplaceTempView("last_100_rolling_avg")
+    last_100_avg_df.persist(StorageLevel.MEMORY_ONLY)
+
     return 0
 
 
