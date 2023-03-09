@@ -5,6 +5,8 @@
 
 import sys
 
+from pyspark import StorageLevel
+
 # from pyspark import SparkContext
 from pyspark.sql import SparkSession
 
@@ -39,13 +41,13 @@ def main():
 
     database = "baseball"
     user = "root"
-    password = "password"  # pragma: allowlist secret
+    password = "Ravens@98"  # pragma: allowlist secret
     # source : https://docs.soteri.io/security-for-bitbucket/3.2.2/allow-listing-detected-secrets
     server = "localhost"
     dbtable_bc = "batter_counts"
     dbtable_g = "game"
-    query_bc = "SELECT * FROM baseball.batter_counts LIMIT 10;"
-    query_g = "SELECT * FROM baseball.game LIMIT 10;"
+    query_bc = "SELECT * FROM baseball.batter_counts;"
+    query_g = "SELECT * FROM baseball.game;"
     port = 3306
     jdbc_url = f"jdbc:mysql://{server}:{port}/{database}?permitMysqlScheme"
     jdbc_driver = "org.mariadb.jdbc.Driver"
@@ -78,6 +80,47 @@ def main():
     df_g.show()
     # source : https://kontext.tech/article/1061/pyspark-read-data-from-mariadb-database
 
+    # persist in memory
+    df_bc.createOrReplaceTempView("batter_counts")
+    df_bc.persist(StorageLevel.MEMORY_ONLY)
+    df_g.createOrReplaceTempView("game")
+    df_g.persist(StorageLevel.MEMORY_ONLY)
+
+    baseball_df = spark.sql(
+        """
+        SELECT b.batter
+            , b.game_id
+            , g.local_date
+            , b.Hit
+            , b.atBat
+        FROM batter_counts b
+            JOIN game g
+                ON b.game_id = g.game_id
+        WHERE batter = '440361'
+        """
+    )
+    baseball_df.show()
+    baseball_df.createOrReplaceTempView("joined_baseball")
+    baseball_df.persist(StorageLevel.MEMORY_ONLY)
+
+    '''
+    last_100_dates_df = spark.sql(
+        """
+        SELECT a.batter
+            , a.local_date
+            , COALESCE(d.hit, 0) AS joined_hit
+            , COALESCE(d.atBat, 0) AS joined_atBat
+        FROM joined_baseball a
+            LEFT JOIN joined_baseball d
+                ON d.batter = a.batter
+                    AND d.local_date BETWEEN DATE_ADD(a.local_date, INTERVAL - 101 DAY)
+                    AND DATE_ADD(a.local_date, INTERVAL - 1 DAY)
+        """
+    )
+    last_100_dates_df.show()
+    last_100_dates_df.createOrReplaceTempView("last_100_dates")
+    last_100_dates_df.persist(StorageLevel.MEMORY_ONLY)
+    '''
     return 0
 
 
