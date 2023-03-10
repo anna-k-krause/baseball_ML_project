@@ -18,8 +18,9 @@ def print_heading(title):
 
 
 class BaseballRollingAvgTransformer:
+    # make transformer class
     def __init__(self):
-        # super().__init__()
+        # make spark connection a member variable for all functions in class
         self.appName = "MariaDB Baseball Test"
         self.master = "local"
         self.driverpath = "spark.driver.extraClassPath"
@@ -34,13 +35,14 @@ class BaseballRollingAvgTransformer:
         return
 
     def _mariadb_connection(self):
+        # Connects to MariaDB and joins two datatables in baseball db
         # Open Spark Session and connect MariaDB
-        print_heading("Testing the Main")
+        print_heading("Connecting to MariaDB")
 
         # arguments for connecting to baseball db
         database = "baseball"
         user = "root"
-        password = "Ravens@98"  # pragma: allowlist secret
+        password = "password"  # pragma: allowlist secret
         # source : https://docs.soteri.io/security-for-bitbucket/3.2.2/allow-listing-detected-secrets
         server = "localhost"
         dbtable_bc = "batter_counts"
@@ -82,6 +84,8 @@ class BaseballRollingAvgTransformer:
         df_g.createOrReplaceTempView("game")
         df_g.persist(StorageLevel.MEMORY_ONLY)
 
+        print_heading("Joining batter_counts and game table")
+
         # join tables together
         baseball_df = self.spark.sql(
             """
@@ -103,8 +107,13 @@ class BaseballRollingAvgTransformer:
 
     def _transform_rolling_avg(self):
 
+        # call connection function from same class
         self._mariadb_connection()
 
+        print_heading("Calculating Rolling Average")
+
+        # getting last 100 days before each game for each batter
+        # Some of my logic had to change from my earlier code
         last_100_dates_df = self.spark.sql(
             """
             SELECT a.batter
@@ -121,6 +130,7 @@ class BaseballRollingAvgTransformer:
         last_100_dates_df.createOrReplaceTempView("last_100_dates")
         last_100_dates_df.persist(StorageLevel.MEMORY_ONLY)
 
+        # Get Sum of hits and atBats for each batter
         last_100_hat_totals_df = self.spark.sql(
             """
             SELECT batter
@@ -134,6 +144,7 @@ class BaseballRollingAvgTransformer:
         last_100_hat_totals_df.createOrReplaceTempView("last_100_hat_totals")
         last_100_hat_totals_df.persist(StorageLevel.MEMORY_ONLY)
 
+        # Calculate batting average for each day
         last_100_avg_df = self.spark.sql(
             """
             SELECT batter
@@ -150,7 +161,9 @@ class BaseballRollingAvgTransformer:
 
 
 def main():
+    # instantiating the class
     brat = BaseballRollingAvgTransformer()
+    # can just call the rolling average function since we call the connection function inside it
     rolling_avg_df = brat._transform_rolling_avg()
     rolling_avg_df.show()
 
