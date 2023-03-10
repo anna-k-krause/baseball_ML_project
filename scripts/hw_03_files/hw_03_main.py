@@ -17,143 +17,142 @@ def print_heading(title):
     # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture02.html#/7/5/0
 
 
-def load_data():
-    print("loaded")
+class BaseballRollingAvgTransformer:
+    def __init__(self):
+        # super().__init__()
+        self.appName = "MariaDB Baseball Test"
+        self.master = "local"
+        self.driverpath = "spark.driver.extraClassPath"
+        self.jarname = "./mariadb-java-client-3.1.2.jar"
+        # Create Spark session
+        self.spark = (
+            SparkSession.builder.appName(self.appName)
+            .master(self.master)
+            .config(self.driverpath, self.jarname)
+            .getOrCreate()
+        )
+        return
 
+    def _mariadb_connection(self):
+        # Open Spark Session and connect MariaDB
+        print_heading("Testing the Main")
 
-def old_main():
-    # Open Spark Session and connect MariaDB
-    print_heading("Testing the Main")
+        # arguments for connecting to baseball db
+        database = "baseball"
+        user = "root"
+        password = "Ravens@98"  # pragma: allowlist secret
+        # source : https://docs.soteri.io/security-for-bitbucket/3.2.2/allow-listing-detected-secrets
+        server = "localhost"
+        dbtable_bc = "batter_counts"
+        dbtable_g = "game"
+        query_bc = "SELECT * FROM baseball.batter_counts;"
+        query_g = "SELECT * FROM baseball.game;"
+        port = 3306
+        jdbc_url = f"jdbc:mysql://{server}:{port}/{database}?permitMysqlScheme"
+        jdbc_driver = "org.mariadb.jdbc.Driver"
 
-    # source : https://gist.github.com/radcliff/47af9f6238c95f6ae239
+        # Create a data frame by reading data from Oracle via JDBC
+        # Connect to batter_counts table
+        df_bc = (
+            self.spark.read.format("jdbc")
+            .option("url", jdbc_url)
+            .option("user", user)
+            .option("password", password)
+            .option("sql", query_bc)
+            .option("dbtable", dbtable_bc)
+            .option("driver", jdbc_driver)
+            .load()
+        )
+        # Connect to game table
+        df_g = (
+            self.spark.read.format("jdbc")
+            .option("url", jdbc_url)
+            .option("user", user)
+            .option("password", password)
+            .option("sql", query_g)
+            .option("dbtable", dbtable_g)
+            .option("driver", jdbc_driver)
+            .load()
+        )
+        # source : https://kontext.tech/article/1061/pyspark-read-data-from-mariadb-database
 
-    appName = "MariaDB Baseball Test"
-    master = "local"
-    driverpath = "spark.driver.extraClassPath"
-    jarname = "./mariadb-java-client-3.1.2.jar"
-    # Create Spark session
-    spark = (
-        SparkSession.builder.appName(appName)
-        .master(master)
-        .config(driverpath, jarname)
-        .getOrCreate()
-    )
+        # persist in memory
+        df_bc.createOrReplaceTempView("batter_counts")
+        df_bc.persist(StorageLevel.MEMORY_ONLY)
+        df_g.createOrReplaceTempView("game")
+        df_g.persist(StorageLevel.MEMORY_ONLY)
 
-    database = "baseball"
-    user = "root"
-    password = "Ravens@98"  # pragma: allowlist secret
-    # source : https://docs.soteri.io/security-for-bitbucket/3.2.2/allow-listing-detected-secrets
-    server = "localhost"
-    dbtable_bc = "batter_counts"
-    dbtable_g = "game"
-    query_bc = "SELECT * FROM baseball.batter_counts;"
-    query_g = "SELECT * FROM baseball.game;"
-    port = 3306
-    jdbc_url = f"jdbc:mysql://{server}:{port}/{database}?permitMysqlScheme"
-    jdbc_driver = "org.mariadb.jdbc.Driver"
+        # join tables together
+        baseball_df = self.spark.sql(
+            """
+            SELECT b.batter
+                , b.game_id
+                , g.local_date
+                , b.Hit
+                , b.atBat
+            FROM batter_counts b
+                JOIN game g
+                    ON b.game_id = g.game_id
+            -- WHERE batter = '110029'
+            ORDER BY batter, local_date
+            """
+        )
+        baseball_df.createOrReplaceTempView("joined_baseball")
+        baseball_df.persist(StorageLevel.MEMORY_ONLY)
+        return baseball_df
 
-    # Create a data frame by reading data from Oracle via JDBC
-    df_bc = (
-        spark.read.format("jdbc")
-        .option("url", jdbc_url)
-        .option("user", user)
-        .option("password", password)
-        .option("sql", query_bc)
-        .option("dbtable", dbtable_bc)
-        .option("driver", jdbc_driver)
-        .load()
-    )
+    def _transform_rolling_avg(self):
 
-    # df_bc.show()
+        self._mariadb_connection()
 
-    df_g = (
-        spark.read.format("jdbc")
-        .option("url", jdbc_url)
-        .option("user", user)
-        .option("password", password)
-        .option("sql", query_g)
-        .option("dbtable", dbtable_g)
-        .option("driver", jdbc_driver)
-        .load()
-    )
+        last_100_dates_df = self.spark.sql(
+            """
+            SELECT a.batter
+                , a.local_date
+                , (CASE WHEN d.hit > 0 THEN d.hit ELSE 0 END) AS joined_hit
+                , (CASE WHEN d.atBat > 0 THEN d.atBat ELSE 0 END) as joined_atBat
+            FROM joined_baseball a
+                LEFT JOIN joined_baseball d
+                    ON d.batter = a.batter
+                        AND d.local_date > DATE_SUB(a.local_date, 100)
+                         AND d.local_date < a.local_date
+            """
+        )
+        last_100_dates_df.createOrReplaceTempView("last_100_dates")
+        last_100_dates_df.persist(StorageLevel.MEMORY_ONLY)
 
-    # df_g.show()
-    # source : https://kontext.tech/article/1061/pyspark-read-data-from-mariadb-database
+        last_100_hat_totals_df = self.spark.sql(
+            """
+            SELECT batter
+                , local_date
+                , SUM(joined_hit) AS hitSum
+                , SUM(joined_atBat) AS batSum
+            FROM last_100_dates
+            GROUP BY batter, local_date
+            """
+        )
+        last_100_hat_totals_df.createOrReplaceTempView("last_100_hat_totals")
+        last_100_hat_totals_df.persist(StorageLevel.MEMORY_ONLY)
 
-    # persist in memory
-    df_bc.createOrReplaceTempView("batter_counts")
-    df_bc.persist(StorageLevel.MEMORY_ONLY)
-    df_g.createOrReplaceTempView("game")
-    df_g.persist(StorageLevel.MEMORY_ONLY)
-
-    baseball_df = spark.sql(
-        """
-        SELECT b.batter
-            , b.game_id
-            , g.local_date
-            , b.Hit
-            , b.atBat
-        FROM batter_counts b
-            JOIN game g
-                ON b.game_id = g.game_id
-        -- WHERE batter = '110029'
-        ORDER BY batter, local_date
-        """
-    )
-    # baseball_df.show(50)
-    # baseball_df.printSchema()
-    baseball_df.createOrReplaceTempView("joined_baseball")
-    baseball_df.persist(StorageLevel.MEMORY_ONLY)
-
-    last_100_dates_df = spark.sql(
-        """
-        SELECT a.batter
-            , a.local_date
-            , (CASE WHEN d.hit > 0 THEN d.hit ELSE 0 END) AS joined_hit
-            , (CASE WHEN d.atBat > 0 THEN d.atBat ELSE 0 END) as joined_atBat
-        FROM joined_baseball a
-            LEFT JOIN joined_baseball d
-                ON d.batter = a.batter
-                    AND d.local_date > DATE_SUB(a.local_date, 100)
-                     AND d.local_date < a.local_date
-        """
-    )
-    # last_100_dates_df.show(50)
-    last_100_dates_df.createOrReplaceTempView("last_100_dates")
-    last_100_dates_df.persist(StorageLevel.MEMORY_ONLY)
-
-    last_100_hat_totals_df = spark.sql(
-        """
-        SELECT batter
-            , local_date
-            , SUM(joined_hit) AS hitSum
-            , SUM(joined_atBat) AS batSum
-        FROM last_100_dates
-        GROUP BY batter, local_date
-        """
-    )
-    # last_100_hat_totals_df.show()
-    last_100_hat_totals_df.createOrReplaceTempView("last_100_hat_totals")
-    last_100_hat_totals_df.persist(StorageLevel.MEMORY_ONLY)
-
-    last_100_avg_df = spark.sql(
-        """
-        SELECT batter
-            , local_date
-            , (CASE WHEN batSum = 0 OR hitSum = 0 THEN 0 ELSE (hitSum / batSum) END)
-            AS rolling_avg
-        FROM last_100_hat_totals
-        ORDER BY batter, local_date
-        """
-    )
-    last_100_avg_df.show()
-    last_100_avg_df.createOrReplaceTempView("last_100_rolling_avg")
-    last_100_avg_df.persist(StorageLevel.MEMORY_ONLY)
-    return last_100_avg_df
+        last_100_avg_df = self.spark.sql(
+            """
+            SELECT batter
+                , local_date
+                , (CASE WHEN batSum = 0 OR hitSum = 0 THEN 0 ELSE (hitSum / batSum) END)
+                AS rolling_avg
+            FROM last_100_hat_totals
+            ORDER BY batter, local_date
+            """
+        )
+        last_100_avg_df.createOrReplaceTempView("last_100_rolling_avg")
+        last_100_avg_df.persist(StorageLevel.MEMORY_ONLY)
+        return last_100_avg_df
 
 
 def main():
-    old_main()
+    brat = BaseballRollingAvgTransformer()
+    rolling_avg_df = brat._transform_rolling_avg()
+    rolling_avg_df.show()
 
     return 0
 
