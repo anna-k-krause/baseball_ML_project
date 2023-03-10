@@ -20,6 +20,8 @@ def print_heading(title):
 
 class BaseballRollingAvgTransformer(Transformer):
     # make transformer class
+    # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture06.html#/7/7/4
+
     def __init__(self):
         super(BaseballRollingAvgTransformer, self).__init__()
         # make spark connection a member variable for all functions in class
@@ -49,8 +51,8 @@ class BaseballRollingAvgTransformer(Transformer):
         server = "localhost"
         dbtable_bc = "batter_counts"
         dbtable_g = "game"
-        query_bc = "SELECT * FROM baseball.batter_counts;"
-        query_g = "SELECT * FROM baseball.game;"
+        query_bc = "SELECT * FROM baseball.batter_counts"
+        query_g = "SELECT * FROM baseball.game"
         port = 3306
         jdbc_url = f"jdbc:mysql://{server}:{port}/{database}?permitMysqlScheme"
         jdbc_driver = "org.mariadb.jdbc.Driver"
@@ -165,8 +167,14 @@ class BaseballRollingAvgTransformer(Transformer):
 def main():
     # instantiating the class
     brat = BaseballRollingAvgTransformer()
+
+    # call connection function and define dataset to be put in the transformer
     joined_df = brat._mariadb_connection()
+
+    # call transformer with joined dataframe as the parameter
     rolling_avg_df = brat._transform(joined_df)
+
+    # show final result
     rolling_avg_df.show()
 
     return 0
