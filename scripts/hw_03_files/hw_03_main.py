@@ -6,6 +6,7 @@
 import sys
 
 from pyspark import StorageLevel
+from pyspark.ml import Transformer
 from pyspark.sql import SparkSession
 
 
@@ -17,9 +18,10 @@ def print_heading(title):
     # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture02.html#/7/5/0
 
 
-class BaseballRollingAvgTransformer:
+class BaseballRollingAvgTransformer(Transformer):
     # make transformer class
     def __init__(self):
+        super(BaseballRollingAvgTransformer, self).__init__()
         # make spark connection a member variable for all functions in class
         self.appName = "MariaDB Baseball Test"
         self.master = "local"
@@ -105,10 +107,10 @@ class BaseballRollingAvgTransformer:
         baseball_df.persist(StorageLevel.MEMORY_ONLY)
         return baseball_df
 
-    def _transform_rolling_avg(self):
+    def _transform(self, df):
 
         # call connection function from same class
-        self._mariadb_connection()
+        # self._mariadb_connection()
 
         print_heading("Calculating Rolling Average")
 
@@ -163,8 +165,8 @@ class BaseballRollingAvgTransformer:
 def main():
     # instantiating the class
     brat = BaseballRollingAvgTransformer()
-    # can just call the rolling average function since we call the connection function inside it
-    rolling_avg_df = brat._transform_rolling_avg()
+    joined_df = brat._mariadb_connection()
+    rolling_avg_df = brat._transform(joined_df)
     rolling_avg_df.show()
 
     return 0
