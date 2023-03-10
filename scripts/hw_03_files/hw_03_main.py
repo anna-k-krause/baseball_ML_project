@@ -6,11 +6,7 @@
 import sys
 
 from pyspark import StorageLevel
-
-# from pyspark import SparkContext
 from pyspark.sql import SparkSession
-
-# from pyspark.sql import DataFrameReader, SQLContext, Row,
 
 
 def print_heading(title):
@@ -21,7 +17,11 @@ def print_heading(title):
     # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture02.html#/7/5/0
 
 
-def main():
+def load_data():
+    print("loaded")
+
+
+def old_main():
     # Open Spark Session and connect MariaDB
     print_heading("Testing the Main")
 
@@ -64,7 +64,7 @@ def main():
         .load()
     )
 
-    df_bc.show()
+    # df_bc.show()
 
     df_g = (
         spark.read.format("jdbc")
@@ -77,7 +77,7 @@ def main():
         .load()
     )
 
-    df_g.show()
+    # df_g.show()
     # source : https://kontext.tech/article/1061/pyspark-read-data-from-mariadb-database
 
     # persist in memory
@@ -100,7 +100,7 @@ def main():
         ORDER BY batter, local_date
         """
     )
-    baseball_df.show()
+    # baseball_df.show(50)
     # baseball_df.printSchema()
     baseball_df.createOrReplaceTempView("joined_baseball")
     baseball_df.persist(StorageLevel.MEMORY_ONLY)
@@ -109,16 +109,16 @@ def main():
         """
         SELECT a.batter
             , a.local_date
-            , COALESCE(d.hit, 0) AS joined_hit
-            , COALESCE(d.atBat, 0) AS joined_atBat
+            , (CASE WHEN d.hit > 0 THEN d.hit ELSE 0 END) AS joined_hit
+            , (CASE WHEN d.atBat > 0 THEN d.atBat ELSE 0 END) as joined_atBat
         FROM joined_baseball a
             LEFT JOIN joined_baseball d
                 ON d.batter = a.batter
-                    AND d.local_date BETWEEN DATE_ADD(a.local_date, -101)
-                    AND DATE_ADD(a.local_date, -1)
+                    AND d.local_date > DATE_SUB(a.local_date, 100)
+                     AND d.local_date < a.local_date
         """
     )
-    last_100_dates_df.show()
+    # last_100_dates_df.show(50)
     last_100_dates_df.createOrReplaceTempView("last_100_dates")
     last_100_dates_df.persist(StorageLevel.MEMORY_ONLY)
 
@@ -132,7 +132,7 @@ def main():
         GROUP BY batter, local_date
         """
     )
-    last_100_hat_totals_df.show()
+    # last_100_hat_totals_df.show()
     last_100_hat_totals_df.createOrReplaceTempView("last_100_hat_totals")
     last_100_hat_totals_df.persist(StorageLevel.MEMORY_ONLY)
 
@@ -140,7 +140,7 @@ def main():
         """
         SELECT batter
             , local_date
-            , (CASE WHEN batSum = 0 THEN 0 ELSE COALESCE(hitSum / batSum, 0) END)
+            , (CASE WHEN batSum = 0 OR hitSum = 0 THEN 0 ELSE (hitSum / batSum) END)
             AS rolling_avg
         FROM last_100_hat_totals
         ORDER BY batter, local_date
@@ -149,6 +149,11 @@ def main():
     last_100_avg_df.show()
     last_100_avg_df.createOrReplaceTempView("last_100_rolling_avg")
     last_100_avg_df.persist(StorageLevel.MEMORY_ONLY)
+    return last_100_avg_df
+
+
+def main():
+    old_main()
 
     return 0
 
