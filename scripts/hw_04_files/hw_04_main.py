@@ -6,15 +6,13 @@
 import os
 import sys
 
-# import numpy as np
+import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from dataset_loader_mod import TestDatasets
 from plotly import express as px
-
-# from sklearn.ensemble import RandomForestClassifier
-# from sklearn.pipeline import Pipeline
-# from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
 
 # from dataset_loader.py from class / Julien's slides
 
@@ -86,12 +84,12 @@ def initial_plots(df, predictor, response, df_data_types):
             )
         else:
             # scatter plot
-            # https://plotly.com/python/line-and-scatter/
             fig_6 = px.scatter(df, predictor, response, trendline="ols")
             fig_6.write_html(
                 file=f"Output_Plots/scatter_cont_response_cont_predictor_{predictor}.html",
                 include_plotlyjs="cdn",
             )
+            # https://plotly.com/python/line-and-scatter/
 
 
 def ranking_algorithms(df, predictor, response, df_data_types):
@@ -127,10 +125,6 @@ def ranking_algorithms(df, predictor, response, df_data_types):
     ):
         # logistic regression model
         log_pred = sm.add_constant(X)
-        print("X values")
-        print(X)
-        print(X.value_counts())
-        print(log_pred)
         logistic_regression_model = sm.Logit(Y, log_pred)
         logistic_regression_model_fitted = logistic_regression_model.fit()
         print(f"Variable: {predictor}")
@@ -149,38 +143,20 @@ def ranking_algorithms(df, predictor, response, df_data_types):
         )
 
 
-"""
-def random_forest_features(df, predictors, response, df_data_types):
+def random_forest_features(df, df_continuous, response):
+    X_orig = df_continuous.values
+    Y_orig = df[response].values
 
-    # does the random forest need to take in every feature at the same time? Can I pass all of them?
-    for predictor in predictors:
-        if df_data_types[predictor] == "continuous":
-        X_orig = df[predictor].values
-        Y_orig = df[response].values
-
-        print(X_orig)
-        print(Y_orig)
-
-        # Random Forest
-        print_heading("Random Forest Model via Pipeline Predictions")
-        rf_pipeline = Pipeline(
-            [
-                ("Standard Scalar", StandardScaler()),
-                ("RandomForest", RandomForestClassifier(random_state=1234)),
-            ]
-        )
-        rf_pipeline.fit(X_orig, np.ravel(Y_orig))
-        # This .ravel() was suggested by PyCharm when I got an error message
-
-        # rf_probability = rf_pipeline.predict_proba(X_orig)
-        # rf_prediction = rf_pipeline.predict(X_orig)
-        # rf_score = rf_pipeline.score(X_orig, Y_orig)
-        # print(f"Probability: {rf_probability}")
-        # print(f"Predictions: {rf_prediction}")
-        # print(f"Score: {rf_score}")
-    else:
-        return
-"""
+    # Random Forest
+    print_heading("Random Feature Importance")
+    sc = StandardScaler()
+    X_scale = sc.fit_transform(X_orig)
+    rf = RandomForestClassifier(random_state=1234)
+    rf.fit(X_scale, np.ravel(Y_orig))
+    # This .ravel() was suggested by PyCharm when I got an error message
+    importances = rf.feature_importances_
+    print(importances)
+    # https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
 
 
 def main():
@@ -191,7 +167,9 @@ def main():
     create_folder()
 
     test_datasets = TestDatasets()
-    df, predictors, response = test_datasets.get_test_data_set(data_set_name="tips")
+    df, predictors, response = test_datasets.get_test_data_set(
+        data_set_name="breast_cancer"
+    )
     # continuous response test_sets : ["mpg", "tips", "diabetes", "breast_cancer"]
     # bool response test_sets : ["titanic", "breast_cancer"]
     df = df.dropna()
@@ -212,7 +190,7 @@ def main():
     # source: https://www.w3schools.com/python/ref_func_isinstance.asp
 
     print(df, predictors, response)
-    print(df_data_types)
+    # print(df_data_types)
     dict_print(df_data_types)
 
     for predictor in predictors:
@@ -221,14 +199,18 @@ def main():
     for predictor in predictors:
         ranking_algorithms(df, predictor, response, df_data_types)
 
-    """
-    non_cont = []
+    # Random Forest Feature Importance
+    cont = []
     for predictor in predictors:
-        if df_data_types[predictor] != "continuous":
-            non_cont.append(predictor)
-    """
+        if df_data_types[predictor] == "continuous":
+            cont.append(predictor)
+    all_continuous = df[df.columns.intersection(cont)]
+    df_continuous = pd.DataFrame(all_continuous)
+    # source : https://stackoverflow.com/questions/12725417/drop-non-numeric-columns-from-a-pandas-dataframe
+    # source : https://stackoverflow.com/questions/56891518/drop-columns-from-pandas-dataframe-
+    # source ^ : if-they-are-not-in-specific-list
 
-    # random_forest_features(df, predictors, response, df_data_types)
+    random_forest_features(df, df_continuous, response)
 
     return 0
 
