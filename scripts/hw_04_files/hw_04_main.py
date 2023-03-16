@@ -8,9 +8,11 @@ import sys
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import statsmodels.api as sm
-from dataset_loader_mod import TestDatasets
+from dataset_loader_test import TestDatasets
 from plotly import express as px
+from plotly.subplots import make_subplots
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 
@@ -28,9 +30,7 @@ def print_heading(title):
 def dict_print(dct):
     for predictor, types in dct.items():
         print("{} : {}".format(predictor, types))
-
-
-# source : https://stackoverflow.com/questions/44689546/how-to-print-out-a-dictionary-nicely-in-python
+    # source : https://stackoverflow.com/questions/44689546/how-to-print-out-a-dictionary-nicely-in-python
 
 
 def create_folder():
@@ -92,7 +92,7 @@ def initial_plots(df, predictor, response, df_data_types):
             # https://plotly.com/python/line-and-scatter/
 
 
-def ranking_algorithms(df, predictor, response, df_data_types):
+def pt_scores(df, predictor, response, df_data_types):
     X = df[predictor]
     Y = df[response]
 
@@ -156,7 +156,116 @@ def random_forest_features(df, df_continuous, response):
     # This .ravel() was suggested by PyCharm when I got an error message
     importances = rf.feature_importances_
     print(importances)
-    # https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
+    # source : https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
+    # source : https://mljar.com/blog/feature-importance-in-random-forest/
+
+
+def mor_plots(df, predictor, response, df_data_types):
+    # store length of df in count variable to later calculate mean line
+    count = len(df.index)
+    if df_data_types[predictor] == "continuous":
+        amount = df[df[response] == 1].shape[0]
+        mean_pop = amount / count
+        # source: referenced from Adrian Kiebeck's hw_01
+
+        hist_pop, bin_edges = np.histogram(df[predictor], bins=10)
+        # source : https://linuxhint.com/python-numpy-histogram/
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) * 0.5
+        # source : https://stackoverflow.com/questions/72688853/get-center-of-bins-histograms-python
+        grouped = df.groupby(pd.cut(df[predictor], bins=bin_edges))
+        grouped_mean = grouped[response].mean()
+        # source : https://stackoverflow.com/questions/34317149/pandas-groupby-with-bin-counts
+
+        list_hist_pop = list(hist_pop)
+        list_bin_centers = list(bin_centers)
+        list_mean = list(grouped_mean)
+        list_bin_edges = list(bin_edges)
+        first_last_edges = [list_bin_edges[0], list_bin_edges[-1]]
+
+        # Plot Creation
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_trace(
+            go.Bar(x=list_bin_centers, y=list_hist_pop, name="Population", opacity=0.5),
+            secondary_y=True,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=list_bin_centers,
+                y=list_mean,
+                name="µi -µpop",
+                line=dict(color="red"),
+                connectgaps=True,
+            ),
+            secondary_y=False,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=first_last_edges, y=[mean_pop, mean_pop], mode="lines", name="µi"
+            ),
+            secondary_y=False,
+        )
+        fig.update_layout(title=predictor)
+        fig.update_xaxes(title_text="Predictor Bin")
+        fig.update_yaxes(title_text="Response", secondary_y=False)
+        fig.update_yaxes(title_text="Population", secondary_y=True)
+        fig.write_html(
+            file=f"Output_Plots/mean_cont_{predictor}.html",
+            include_plotlyjs="cdn",
+        )
+
+    else:
+        amount = df[df[response] == 1].shape[0]
+        mean_pop = amount / count
+        # print(mean_pop)
+
+        # use value_counts to get the bin values and
+        # vc = df[predictor].value_counts()
+        # print(vc)
+        bin_values = df[predictor].value_counts().keys().tolist()
+        bin_counts = df[predictor].value_counts().tolist()
+        # print(bin_values)
+        # print(bin_counts)
+        grouped = df.groupby(df[predictor])
+        grouped_mean = grouped[response].mean()
+        bin_mean = grouped_mean.to_list()
+        # source : https://towardsdatascience.com/11-examples-to-master-pandas-groupby-function-86e0de574f38
+        first_last_bins = [bin_values[0], bin_values[-1]]
+
+        # ((mean of bin1 - mean of pop)^2 + (mean of bin2 - mean of pop)^2 .. etc ) / # bins
+        # (weight* (mean of bin1 - mean of pop)^2 )+
+
+        # source https://stackoverflow.com/questions/35523635/extract-values-in-pandas-value-counts
+
+        # Plot Creation
+        fig_2 = make_subplots(specs=[[{"secondary_y": True}]])
+        fig_2.add_trace(
+            go.Bar(x=bin_values, y=bin_counts, name="Population", opacity=0.5),
+            secondary_y=True,
+        )
+        fig_2.add_trace(
+            go.Scatter(
+                x=bin_values,
+                y=bin_mean,
+                name="µi -µpop",
+                line=dict(color="red"),
+                connectgaps=True,
+            ),
+            secondary_y=False,
+        )
+        fig_2.add_trace(
+            go.Scatter(
+                x=first_last_bins, y=[mean_pop, mean_pop], mode="lines", name="µi"
+            ),
+            secondary_y=False,
+        )
+        fig_2.update_layout(title=predictor)
+        fig_2.update_xaxes(title_text="Predictor Bin")
+        fig_2.update_yaxes(title_text="Response", secondary_y=False)
+        fig_2.update_yaxes(title_text="Population", secondary_y=True)
+        fig_2.write_html(
+            file=f"Output_Plots/mean_cat_{predictor}.html",
+            include_plotlyjs="cdn",
+        )
 
 
 def main():
@@ -164,22 +273,30 @@ def main():
     pd.set_option("display.max_columns", 500)
     pd.set_option("display.width", 1_000)
 
+    # create output plots folder
     create_folder()
 
+    # import datasets from a modified dataset_loader.py file
     test_datasets = TestDatasets()
-    df, predictors, response = test_datasets.get_test_data_set(
-        data_set_name="breast_cancer"
-    )
+    df, predictors, response = test_datasets.get_test_data_set(data_set_name="titanic")
     # continuous response test_sets : ["mpg", "tips", "diabetes", "breast_cancer"]
     # bool response test_sets : ["titanic", "breast_cancer"]
     df = df.dropna()
+    # print("original vc")
+    # print(df['sex'].value_counts())
+
+    # create dictionary to store each predictor, response, and their associated data types
+    # I was inspired by Thomas Bui's use of a dictionary in office hours and decided I wanted to use a similar idea
     df_data_types = {}
+    # source : https://www.geeksforgeeks.org/python-add-new-keys-to-a-dictionary/
 
     # determine if response is boolean or continuous
     if len(df[response].unique()) == 2:
         df_data_types[response] = "boolean"
     else:
         df_data_types[response] = "continuous"
+        # source : https://stackoverflow.com/questions/42449594/python-pandas-get-unique-count-of-column
+
     # determine if predictor is categorical or continuous
     for predictor in predictors:
         #
@@ -190,16 +307,19 @@ def main():
     # source: https://www.w3schools.com/python/ref_func_isinstance.asp
 
     print(df, predictors, response)
-    # print(df_data_types)
+    # I found a nicer way to print the dictionary
     dict_print(df_data_types)
 
+    # generate plots
     for predictor in predictors:
         initial_plots(df, predictor, response, df_data_types)
 
+    # get p values and t scores
     for predictor in predictors:
-        ranking_algorithms(df, predictor, response, df_data_types)
+        pt_scores(df, predictor, response, df_data_types)
 
-    # Random Forest Feature Importance
+    # get Random Forest Feature Importance
+    # separate predictors to only include continuous ones
     cont = []
     for predictor in predictors:
         if df_data_types[predictor] == "continuous":
@@ -210,7 +330,11 @@ def main():
     # source : https://stackoverflow.com/questions/56891518/drop-columns-from-pandas-dataframe-
     # source ^ : if-they-are-not-in-specific-list
 
+    # run random forest with chosen predictors
     random_forest_features(df, df_continuous, response)
+
+    for predictor in predictors:
+        mor_plots(df, predictor, response, df_data_types)
 
     return 0
 
