@@ -111,6 +111,7 @@ def pt_scores(df, predictor, response, df_data_types):
         # p value and t score
         t_value = round(linear_regression_model_fitted.tvalues[1], 6)
         p_value = "{:.6e}".format(linear_regression_model_fitted.pvalues[1])
+        print(predictor, "- Scores")
         print("t_value", t_value)
         print("p_value", p_value)
 
@@ -119,6 +120,7 @@ def pt_scores(df, predictor, response, df_data_types):
             file=f"Output_Plots/linear_reg_values_{predictor}.html",
             include_plotlyjs="cdn",
         )
+        return t_value, p_value
         # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture07.html#/5/1
     elif (
         df_data_types[response] == "boolean"
@@ -134,6 +136,7 @@ def pt_scores(df, predictor, response, df_data_types):
 
         t_value = round(logistic_regression_model_fitted.tvalues[1], 6)
         p_value = "{:.6e}".format(logistic_regression_model_fitted.pvalues[1])
+        print(predictor, "- Scores")
         print("t_value", t_value)
         print("p_value", p_value)
 
@@ -142,6 +145,11 @@ def pt_scores(df, predictor, response, df_data_types):
             file=f"Output_Plots/logistic_reg_values_{predictor}.html",
             include_plotlyjs="cdn",
         )
+        return t_value, p_value
+    else:
+        t_value = "NA"
+        p_value = "NA"
+        return t_value, p_value
 
 
 def random_forest_features(df, df_continuous, response, df_data_types):
@@ -157,6 +165,7 @@ def random_forest_features(df, df_continuous, response, df_data_types):
         rfc.fit(X_scale, np.ravel(Y_orig))
         # This .ravel() was suggested by PyCharm when I got an error message
         importances = rfc.feature_importances_
+        print(df_continuous.columns)
         print(importances)
         # source : https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
         # source : https://mljar.com/blog/feature-importance-in-random-forest/
@@ -167,6 +176,7 @@ def random_forest_features(df, df_continuous, response, df_data_types):
         rfr.fit(X_orig, np.ravel(Y_orig))
         # This .ravel() was suggested by PyCharm when I got an error message
         importances = rfr.feature_importances_
+        print(df_continuous.columns)
         print(importances)
 
 
@@ -183,11 +193,14 @@ def mor_plots(df, predictor, response, df_data_types):
         # source : https://stackoverflow.com/questions/72688853/get-center-of-bins-histograms-python
         grouped = df.groupby(pd.cut(df[predictor], bins=bin_edges))
         grouped_mean = grouped[response].mean()
+        # print(grouped_mean)
         # source : https://stackoverflow.com/questions/34317149/pandas-groupby-with-bin-counts
 
         list_hist_pop = list(hist_pop)
         list_bin_centers = list(bin_centers)
         list_mean = list(grouped_mean)
+        # list_mean = [0 if math.isnan(x) else x for x in list_mean_prep]
+        # print(list_mean)
         list_bin_edges = list(bin_edges)
         first_last_edges = [list_bin_edges[0], list_bin_edges[-1]]
 
@@ -271,6 +284,7 @@ def mor_plots(df, predictor, response, df_data_types):
             file=f"Output_Plots/mean_cont_{predictor}.html",
             include_plotlyjs="cdn",
         )
+        return msq, msqw
 
     else:
         amount = df[df[response] == 1].shape[0]
@@ -359,6 +373,7 @@ def mor_plots(df, predictor, response, df_data_types):
             file=f"Output_Plots/mean_cat_{predictor}.html",
             include_plotlyjs="cdn",
         )
+        return msq, msqw
 
 
 def main():
@@ -375,8 +390,6 @@ def main():
     # continuous response test_sets : ["mpg", "tips", "diabetes"]
     # bool response test_sets : ["titanic", "breast_cancer"]
     df = df.dropna()
-    print("original vc")
-    print(df["sex"].value_counts())
 
     # create dictionary to store each predictor, response, and their associated data types
     # source : https://www.geeksforgeeks.org/python-add-new-keys-to-a-dictionary/
@@ -402,24 +415,52 @@ def main():
     # I found a nicer way to print the dictionary
     dict_print(df_data_types)
 
-    # generate plots
-    """
+    # df_final = pd.DataFrame(columns=['Predictor', 'Type', 't_value', 'p_value', 'DMR', 'wDMR', 'Plot', 'DMR_Plot'])
+    df_final = pd.DataFrame(
+        columns=["Predictor", "Type", "t_value", "p_value", "DMR", "wDMR"]
+    )
+
+    # df.loc[len(df)] = [predictor, type, pval, tval, DMR, wDMR, plot link, dmr plot link]
+    cont = []
+    # generate plots, get p values and t scores, mean of response data
     for predictor in predictors:
+        print_heading(predictor)
+        print("data type: ", df_data_types[predictor])
         initial_plots(df, predictor, response, df_data_types)
-
-    # get p values and t scores
-    for predictor in predictors:
-        pt_scores(df, predictor, response, df_data_types)
-    """
-    # Mean of Response Plots
-    for predictor in predictors:
+        # pt_scores(df, predictor, response, df_data_types)
         mor_plots(df, predictor, response, df_data_types)
+        # pt_scores(df, predictor, response, df_data_types)
+        t_val, p_val = pt_scores(df, predictor, response, df_data_types)
+        DMR, wDMR = mor_plots(df, predictor, response, df_data_types)
+        df_final.loc[len(df_final)] = [
+            predictor,
+            df_data_types[predictor],
+            t_val,
+            p_val,
+            DMR,
+            wDMR,
+        ]
 
-    # get Random Forest Feature Importance
-    # separate predictors to only include continuous ones
+        if df_data_types[predictor] == "continuous":
+            cont.append(predictor)
+    all_continuous = df[df.columns.intersection(cont)]
+    df_continuous = pd.DataFrame(all_continuous)
+    # run random forest with chosen predictors
+    random_forest_features(df, df_continuous, response, df_data_types)
+    print(df_final.head(20))
+    f = open("Output_Plots/final_print_ranking.html", "w")
+    res = df_final.to_html(
+        render_links=True,
+        escape=False,
+    )
+    f.write(res)
+    f.close()
+
+    # Random Forest Feature Importance
     # source : https://stackoverflow.com/questions/12725417/drop-non-numeric-columns-from-a-pandas-dataframe
     # source : https://stackoverflow.com/questions/56891518/drop-columns-from-pandas-dataframe-
     # source ^ : if-they-are-not-in-specific-list
+    # separate predictors to only include continuous ones
     """
     cont = []
     for predictor in predictors:
@@ -427,11 +468,11 @@ def main():
             cont.append(predictor)
     all_continuous = df[df.columns.intersection(cont)]
     df_continuous = pd.DataFrame(all_continuous)
-    print(df_continuous)
 
     # run random forest with chosen predictors
     random_forest_features(df, df_continuous, response, df_data_types)
     """
+
     return 0
 
 
