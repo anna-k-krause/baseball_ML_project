@@ -3,6 +3,7 @@
 
 # Homework 4
 
+import math
 import os
 import sys
 
@@ -16,7 +17,7 @@ from plotly.subplots import make_subplots
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 
-# from dataset_loader.py from class / Julien's slides
+# dataset_loader.py from class / Julien's slides
 
 
 def print_heading(title):
@@ -175,7 +176,6 @@ def mor_plots(df, predictor, response, df_data_types):
     if df_data_types[predictor] == "continuous":
         amount = df[df[response] == 1].shape[0]
         mean_pop = amount / count
-        # source: referenced from Adrian Kiebeck's hw_01
 
         hist_pop, bin_edges = np.histogram(df[predictor], bins=10)
         # source : https://linuxhint.com/python-numpy-histogram/
@@ -190,6 +190,56 @@ def mor_plots(df, predictor, response, df_data_types):
         list_mean = list(grouped_mean)
         list_bin_edges = list(bin_edges)
         first_last_edges = [list_bin_edges[0], list_bin_edges[-1]]
+
+        # ((mean of bin1 - mean of pop)^2 + (mean of bin2 - mean of pop)^2 .. etc ) / # bins
+        # (weight* (mean of bin1 - mean of pop)^2 )+
+
+        # Mean Squared Diff
+        # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
+        # print(predictor)
+        # print(list_mean)
+        # print(mean_pop)
+        list_mean_clean = [x for x in list_mean if str(x) != "nan"]
+        # print(list_mean_clean)
+        mean_total = 0
+        for b in list_mean_clean:
+            mean_diff = (b - mean_pop) ** 2
+            mean_total += mean_diff
+        # print(mean_total)
+        msq = mean_total * 0.1
+        print(predictor, "- Mean Squared Diff")
+        print(msq)
+
+        # Mean Squared Diff - Weighted
+        # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
+        # source : https://stackoverflow.com/questions/62534773/remove-nan-values-from-a-dict-in-python
+        # source : https://stackoverflow.com/questions/3294889/iterating-over-dictionaries-using-for-loops
+
+        # print(list_hist_pop)
+        total_pop = sum(list_hist_pop)
+        # print(total_pop)
+
+        weights_list = []
+        for p in list_hist_pop:
+            div_p = p / total_pop
+            weights_list.append(div_p)
+
+        mean_weight_dict = dict(zip(list_mean, weights_list))
+        # print(mean_weight_dict)
+
+        clean_dict = {
+            key: value
+            for (key, value) in mean_weight_dict.items()
+            if not math.isnan(key)
+        }
+        # print(clean_dict)
+
+        msqw = 0
+        for key, value in clean_dict.items():
+            mean_diff = value * ((key - mean_pop) ** 2)
+            msqw += mean_diff
+        print(predictor, "- Mean Squared Diff - Weighted")
+        print(msqw)
 
         # Plot Creation
         fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -227,13 +277,6 @@ def mor_plots(df, predictor, response, df_data_types):
         mean_pop = amount / count
         # print(mean_pop)
 
-        # use value_counts to get the bin values and counts
-        # source https://stackoverflow.com/questions/35523635/extract-values-in-pandas-value-counts
-        # vc = df[predictor].value_counts()
-        # print(vc)
-        # bin_values = df[predictor].value_counts().keys().tolist()
-        # bin_counts = df[predictor].value_counts().tolist()
-
         # get bin values, counts, and mean
         # source : https://towardsdatascience.com/11-examples-to-master-pandas-groupby-function-86e0de574f38
         grouped = df.groupby(df[predictor])
@@ -245,20 +288,46 @@ def mor_plots(df, predictor, response, df_data_types):
         bin_counts = grouped_counts.to_list()
         bin_mean = grouped_mean.to_list()
 
-        print("final data")
-        print(bin_values)
-        print(bin_counts)
-        print(bin_mean)
-
         # set bin edges for overall mean
         first_last_bins = [bin_values[0], bin_values[-1]]
 
         # ((mean of bin1 - mean of pop)^2 + (mean of bin2 - mean of pop)^2 .. etc ) / # bins
         # (weight* (mean of bin1 - mean of pop)^2 )+
 
-        # final output notes : df.to_html(
+        # Mean Squared Diff
+        # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
+        # print(predictor)
 
-        # source https://stackoverflow.com/questions/35523635/extract-values-in-pandas-value-counts
+        mean_total = 0
+        for b in bin_mean:
+            mean_diff = (b - mean_pop) ** 2
+            mean_total += mean_diff
+        # print(mean_total)
+        msq = mean_total * 0.1
+        print(predictor, "- Mean Squared Diff")
+        print(msq)
+
+        # Mean Squared Diff - Weighted
+        # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
+        # source : https://stackoverflow.com/questions/62534773/remove-nan-values-from-a-dict-in-python
+        # source : https://stackoverflow.com/questions/3294889/iterating-over-dictionaries-using-for-loops
+
+        total_pop = sum(bin_counts)
+        # print(total_pop)
+        bin_weights = []
+        for p in bin_counts:
+            div_p = p / total_pop
+            bin_weights.append(div_p)
+
+        mean_weight_dict = dict(zip(bin_mean, bin_weights))
+        # print(mean_weight_dict)
+
+        msqw = 0
+        for key, value in mean_weight_dict.items():
+            mean_diff = value * ((key - mean_pop) ** 2)
+            msqw += mean_diff
+        print(predictor, "- Mean Squared Diff - Weighted")
+        print(msqw)
 
         # Plot Creation
         fig_2 = make_subplots(specs=[[{"secondary_y": True}]])
@@ -302,7 +371,7 @@ def main():
 
     # import datasets from a modified dataset_loader.py file
     test_datasets = TestDatasets()
-    df, predictors, response = test_datasets.get_test_data_set(data_set_name="tips")
+    df, predictors, response = test_datasets.get_test_data_set(data_set_name="titanic")
     # continuous response test_sets : ["mpg", "tips", "diabetes"]
     # bool response test_sets : ["titanic", "breast_cancer"]
     df = df.dropna()
@@ -334,13 +403,14 @@ def main():
     dict_print(df_data_types)
 
     # generate plots
+    """
     for predictor in predictors:
         initial_plots(df, predictor, response, df_data_types)
 
     # get p values and t scores
     for predictor in predictors:
         pt_scores(df, predictor, response, df_data_types)
-
+    """
     # Mean of Response Plots
     for predictor in predictors:
         mor_plots(df, predictor, response, df_data_types)
@@ -350,7 +420,7 @@ def main():
     # source : https://stackoverflow.com/questions/12725417/drop-non-numeric-columns-from-a-pandas-dataframe
     # source : https://stackoverflow.com/questions/56891518/drop-columns-from-pandas-dataframe-
     # source ^ : if-they-are-not-in-specific-list
-
+    """
     cont = []
     for predictor in predictors:
         if df_data_types[predictor] == "continuous":
@@ -361,7 +431,7 @@ def main():
 
     # run random forest with chosen predictors
     random_forest_features(df, df_continuous, response, df_data_types)
-
+    """
     return 0
 
 
