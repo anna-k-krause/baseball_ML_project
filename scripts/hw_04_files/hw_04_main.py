@@ -13,7 +13,7 @@ import statsmodels.api as sm
 from dataset_loader_test import TestDatasets
 from plotly import express as px
 from plotly.subplots import make_subplots
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 
 # from dataset_loader.py from class / Julien's slides
@@ -143,21 +143,30 @@ def pt_scores(df, predictor, response, df_data_types):
         )
 
 
-def random_forest_features(df, df_continuous, response):
+def random_forest_features(df, df_continuous, response, df_data_types):
     X_orig = df_continuous.values
     Y_orig = df[response].values
 
     # Random Forest
     print_heading("Random Feature Importance")
-    sc = StandardScaler()
-    X_scale = sc.fit_transform(X_orig)
-    rf = RandomForestClassifier(random_state=1234)
-    rf.fit(X_scale, np.ravel(Y_orig))
-    # This .ravel() was suggested by PyCharm when I got an error message
-    importances = rf.feature_importances_
-    print(importances)
-    # source : https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
-    # source : https://mljar.com/blog/feature-importance-in-random-forest/
+    if df_data_types[response] == "boolean":
+        sc = StandardScaler()
+        X_scale = sc.fit_transform(X_orig)
+        rfc = RandomForestClassifier(random_state=1234)
+        rfc.fit(X_scale, np.ravel(Y_orig))
+        # This .ravel() was suggested by PyCharm when I got an error message
+        importances = rfc.feature_importances_
+        print(importances)
+        # source : https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
+        # source : https://mljar.com/blog/feature-importance-in-random-forest/
+    else:
+        # sc = StandardScaler()
+        # X_scale = sc.fit_transform(X_orig)
+        rfr = RandomForestRegressor(random_state=1234)
+        rfr.fit(X_orig, np.ravel(Y_orig))
+        # This .ravel() was suggested by PyCharm when I got an error message
+        importances = rfr.feature_importances_
+        print(importances)
 
 
 def mor_plots(df, predictor, response, df_data_types):
@@ -218,21 +227,36 @@ def mor_plots(df, predictor, response, df_data_types):
         mean_pop = amount / count
         # print(mean_pop)
 
-        # use value_counts to get the bin values and
+        # use value_counts to get the bin values and counts
+        # source https://stackoverflow.com/questions/35523635/extract-values-in-pandas-value-counts
         # vc = df[predictor].value_counts()
         # print(vc)
-        bin_values = df[predictor].value_counts().keys().tolist()
-        bin_counts = df[predictor].value_counts().tolist()
-        # print(bin_values)
-        # print(bin_counts)
-        grouped = df.groupby(df[predictor])
-        grouped_mean = grouped[response].mean()
-        bin_mean = grouped_mean.to_list()
+        # bin_values = df[predictor].value_counts().keys().tolist()
+        # bin_counts = df[predictor].value_counts().tolist()
+
+        # get bin values, counts, and mean
         # source : https://towardsdatascience.com/11-examples-to-master-pandas-groupby-function-86e0de574f38
+        grouped = df.groupby(df[predictor])
+        grouped_counts = grouped[response].count()
+        grouped_mean = grouped[response].mean()
+
+        # convert to lists for easier graphing
+        bin_values = grouped_mean.index.values.tolist()
+        bin_counts = grouped_counts.to_list()
+        bin_mean = grouped_mean.to_list()
+
+        print("final data")
+        print(bin_values)
+        print(bin_counts)
+        print(bin_mean)
+
+        # set bin edges for overall mean
         first_last_bins = [bin_values[0], bin_values[-1]]
 
         # ((mean of bin1 - mean of pop)^2 + (mean of bin2 - mean of pop)^2 .. etc ) / # bins
         # (weight* (mean of bin1 - mean of pop)^2 )+
+
+        # final output notes : df.to_html(
 
         # source https://stackoverflow.com/questions/35523635/extract-values-in-pandas-value-counts
 
@@ -278,33 +302,32 @@ def main():
 
     # import datasets from a modified dataset_loader.py file
     test_datasets = TestDatasets()
-    df, predictors, response = test_datasets.get_test_data_set(data_set_name="titanic")
-    # continuous response test_sets : ["mpg", "tips", "diabetes", "breast_cancer"]
+    df, predictors, response = test_datasets.get_test_data_set(data_set_name="tips")
+    # continuous response test_sets : ["mpg", "tips", "diabetes"]
     # bool response test_sets : ["titanic", "breast_cancer"]
     df = df.dropna()
-    # print("original vc")
-    # print(df['sex'].value_counts())
+    print("original vc")
+    print(df["sex"].value_counts())
 
     # create dictionary to store each predictor, response, and their associated data types
-    # I was inspired by Thomas Bui's use of a dictionary in office hours and decided I wanted to use a similar idea
-    df_data_types = {}
     # source : https://www.geeksforgeeks.org/python-add-new-keys-to-a-dictionary/
+    df_data_types = {}
 
     # determine if response is boolean or continuous
+    # source : https://stackoverflow.com/questions/42449594/python-pandas-get-unique-count-of-column
     if len(df[response].unique()) == 2:
         df_data_types[response] = "boolean"
     else:
         df_data_types[response] = "continuous"
-        # source : https://stackoverflow.com/questions/42449594/python-pandas-get-unique-count-of-column
 
     # determine if predictor is categorical or continuous
+    # source: https://www.w3schools.com/python/ref_func_isinstance.asp
+    # source : https://stackoverflow.com/questions/42449594/python-pandas-get-unique-count-of-column
     for predictor in predictors:
-        #
         if isinstance(df[predictor][0], str) or len(df[predictor].unique()) == 2:
             df_data_types[predictor] = "categorical"
         else:
             df_data_types[predictor] = "continuous"
-    # source: https://www.w3schools.com/python/ref_func_isinstance.asp
 
     print(df, predictors, response)
     # I found a nicer way to print the dictionary
@@ -318,23 +341,26 @@ def main():
     for predictor in predictors:
         pt_scores(df, predictor, response, df_data_types)
 
+    # Mean of Response Plots
+    for predictor in predictors:
+        mor_plots(df, predictor, response, df_data_types)
+
     # get Random Forest Feature Importance
     # separate predictors to only include continuous ones
+    # source : https://stackoverflow.com/questions/12725417/drop-non-numeric-columns-from-a-pandas-dataframe
+    # source : https://stackoverflow.com/questions/56891518/drop-columns-from-pandas-dataframe-
+    # source ^ : if-they-are-not-in-specific-list
+
     cont = []
     for predictor in predictors:
         if df_data_types[predictor] == "continuous":
             cont.append(predictor)
     all_continuous = df[df.columns.intersection(cont)]
     df_continuous = pd.DataFrame(all_continuous)
-    # source : https://stackoverflow.com/questions/12725417/drop-non-numeric-columns-from-a-pandas-dataframe
-    # source : https://stackoverflow.com/questions/56891518/drop-columns-from-pandas-dataframe-
-    # source ^ : if-they-are-not-in-specific-list
+    print(df_continuous)
 
     # run random forest with chosen predictors
-    random_forest_features(df, df_continuous, response)
-
-    for predictor in predictors:
-        mor_plots(df, predictor, response, df_data_types)
+    random_forest_features(df, df_continuous, response, df_data_types)
 
     return 0
 
