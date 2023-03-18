@@ -503,7 +503,9 @@ def main():
         df_continuous = pd.DataFrame(all_continuous)
     print(df_continuous)
     importance_dict = random_forest_features(df, df_continuous, response, df_data_types)
-    importance_df = pd.DataFrame(importance_dict.items(), columns=["Pred", "RFI"])
+    importance_df = pd.DataFrame(
+        importance_dict.items(), columns=["Pred", "RF_Importance"]
+    )
     print(importance_df.head())
 
     df_final = pd.DataFrame(
@@ -542,9 +544,19 @@ def main():
         ]
 
     print(df_final.head(20))
+    # merge with Random Forest Data
+    # source : https://realpython.com/pandas-merge-join-and-concat/#pandas-merge-combining-data-on-
+    # common-columns-or-indices
+
+    merged_df = pd.merge(
+        df_final, importance_df, how="left", left_on="Predictor", right_on="Pred"
+    )
+    print(merged_df.head())
+    clean_df = merged_df.drop("Pred", axis=1)
+    print(clean_df.head(20))
 
     f = open("Output_Plots/final_print_ranking_test.html", "w")
-    res = df_final.to_html(
+    res = clean_df.to_html(
         render_links=True,
         escape=False,
     )
