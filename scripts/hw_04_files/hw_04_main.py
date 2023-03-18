@@ -48,26 +48,32 @@ def initial_plots(df, predictor, response, df_data_types):
     if df_data_types[response] == "boolean":
         if df_data_types[predictor] == "continuous":
             # violin plot
+            # source : https://plotly.com/python/violin/
             fig_1 = px.violin(df, x=response, color=response, y=predictor)
             fig_1.write_html(
                 file=f"Output_Plots/violin_bool_response_cont_predictor_{predictor}.html",
                 include_plotlyjs="cdn",
             )
-            # source : https://plotly.com/python/violin/
+            if_path = f"violin_bool_response_cont_predictor_{predictor}.html"
+
             # distribution plot
+            # source : https://plotly.com/python/distplot/
             fig_2 = px.histogram(df, x=response, color=response, y=predictor)
             fig_2.write_html(
                 file=f"Output_Plots/dist_bool_response_cont_predictor_{predictor}.html",
                 include_plotlyjs="cdn",
             )
-            # source : https://plotly.com/python/distplot/
+            return if_path
+
         else:
             fig_3 = px.density_heatmap(df, x=predictor, y=response)
+            # source : https://plotly.com/python/2D-Histogram/
             fig_3.write_html(
                 file=f"Output_Plots/heatmap_bool_response_cat_predictor_{predictor}.html",
                 include_plotlyjs="cdn",
             )
-            # source : https://plotly.com/python/2D-Histogram/
+            if_path = f"heatmap_bool_response_cat_predictor_{predictor}.html"
+            return if_path
     else:
         if df_data_types[predictor] == "categorical":
             # violin plot
@@ -76,21 +82,24 @@ def initial_plots(df, predictor, response, df_data_types):
                 file=f"Output_Plots/violin_cont_response_cat_predictor_{predictor}.html",
                 include_plotlyjs="cdn",
             )
-            # source : https://plotly.com/python/violin/
             # distribution plot
             fig_5 = px.histogram(df, x=response, color=response, y=predictor)
             fig_5.write_html(
                 file=f"Output_Plots/dist_cont_response_cat_predictor_{predictor}.html",
                 include_plotlyjs="cdn",
             )
+            if_path = f"violin_cont_response_cat_predictor_{predictor}.html"
+            return if_path
         else:
             # scatter plot
+            # https://plotly.com/python/line-and-scatter/
             fig_6 = px.scatter(df, predictor, response, trendline="ols")
             fig_6.write_html(
                 file=f"Output_Plots/scatter_cont_response_cont_predictor_{predictor}.html",
                 include_plotlyjs="cdn",
             )
-            # https://plotly.com/python/line-and-scatter/
+            if_path = f"scatter_cont_response_cont_predictor_{predictor}.html"
+            return if_path
 
 
 def pt_scores(df, predictor, response, df_data_types):
@@ -157,50 +166,121 @@ def random_forest_features(df, df_continuous, response, df_data_types):
     Y_orig = df[response].values
 
     # Random Forest
-    print_heading("Random Feature Importance")
+    # print_heading("Random Feature Importance")
     if df_data_types[response] == "boolean":
+        # source : https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
+        # source : https://mljar.com/blog/feature-importance-in-random-forest/
         sc = StandardScaler()
         X_scale = sc.fit_transform(X_orig)
         rfc = RandomForestClassifier(random_state=1234)
         rfc.fit(X_scale, np.ravel(Y_orig))
         # This .ravel() was suggested by PyCharm when I got an error message
         importances = rfc.feature_importances_
-        print(df_continuous.columns)
-        print(importances)
-        # source : https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
-        # source : https://mljar.com/blog/feature-importance-in-random-forest/
+        importances_list = list(importances)
+        columns_list = df_continuous.columns.to_list()
+
+        # print(columns_list)
+        # print(importances_list)
+        col_imp_dict = dict(zip(columns_list, importances_list))
+        print(col_imp_dict)
+        return col_imp_dict
+
     else:
-        # sc = StandardScaler()
-        # X_scale = sc.fit_transform(X_orig)
         rfr = RandomForestRegressor(random_state=1234)
         rfr.fit(X_orig, np.ravel(Y_orig))
         # This .ravel() was suggested by PyCharm when I got an error message
         importances = rfr.feature_importances_
-        print(df_continuous.columns)
-        print(importances)
+        importances_list = list(importances)
+        columns_list = df_continuous.columns.to_list()
+
+        # print(columns_list)
+        # print(importances_list)
+        col_imp_dict = dict(zip(columns_list, importances_list))
+        print(col_imp_dict)
+        return col_imp_dict
+
+
+def random_forest_features_2(df, df_continuous, predictor, response, df_data_types):
+    X_orig = df_continuous.values
+    Y_orig = df[response].values
+    if df_data_types[predictor] == "continuous":
+        # Random Forest
+        # print_heading("Random Feature Importance")
+        if df_data_types[response] == "boolean":
+            # source : https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
+            # source : https://mljar.com/blog/feature-importance-in-random-forest/
+            sc = StandardScaler()
+            X_scale = sc.fit_transform(X_orig)
+            rfc = RandomForestClassifier(random_state=1234)
+            rfc.fit(X_scale, np.ravel(Y_orig))
+            # This .ravel() was suggested by PyCharm when I got an error message
+            importances = rfc.feature_importances_
+            importances_list = list(importances)
+            columns_list = df_continuous.columns.to_list()
+            # print(df_continuous.columns)
+            # print(importances)
+            # print(columns_list)
+            # print(importances_list)
+            col_imp_dict = dict(zip(columns_list, importances_list))
+            print(col_imp_dict)
+
+            imp_value = 0
+            for key, value in col_imp_dict.items():
+                if key == predictor:
+                    imp_value = value
+                else:
+                    print(predictor)
+                    print("null here")
+                    imp_value = "NaN"
+            print(imp_value)
+            return imp_value
+
+        else:
+            rfr = RandomForestRegressor(random_state=1234)
+            rfr.fit(X_orig, np.ravel(Y_orig))
+            # This .ravel() was suggested by PyCharm when I got an error message
+            importances = rfr.feature_importances_
+            importances_list = list(importances)
+            columns_list = df_continuous.columns.to_list()
+
+            # print(columns_list)
+            # print(importances_list)
+            col_imp_dict = dict(zip(columns_list, importances_list))
+            # print(col_imp_dict)
+
+            imp_value = 0
+            for key, value in col_imp_dict.items():
+                if predictor == key:
+                    imp_value = value
+                else:
+                    imp_value = "NaN"
+            print(imp_value)
+            return imp_value
+    else:
+        imp_value = "NaN"
+        print(imp_value)
+        return imp_value
 
 
 def mor_plots(df, predictor, response, df_data_types):
     # store length of df in count variable to later calculate mean line
     count = len(df.index)
     if df_data_types[predictor] == "continuous":
+        # source : https://linuxhint.com/python-numpy-histogram/
+        # source : https://stackoverflow.com/questions/72688853/get-center-of-bins-histograms-python
+        # source : https://stackoverflow.com/questions/34317149/pandas-groupby-with-bin-counts
         amount = df[df[response] == 1].shape[0]
         mean_pop = amount / count
 
         hist_pop, bin_edges = np.histogram(df[predictor], bins=10)
-        # source : https://linuxhint.com/python-numpy-histogram/
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) * 0.5
-        # source : https://stackoverflow.com/questions/72688853/get-center-of-bins-histograms-python
         grouped = df.groupby(pd.cut(df[predictor], bins=bin_edges))
         grouped_mean = grouped[response].mean()
-        # print(grouped_mean)
-        # source : https://stackoverflow.com/questions/34317149/pandas-groupby-with-bin-counts
 
+        # Convert values to lists for easier graphing
         list_hist_pop = list(hist_pop)
         list_bin_centers = list(bin_centers)
         list_mean = list(grouped_mean)
-        # list_mean = [0 if math.isnan(x) else x for x in list_mean_prep]
-        # print(list_mean)
         list_bin_edges = list(bin_edges)
         first_last_edges = [list_bin_edges[0], list_bin_edges[-1]]
 
@@ -209,50 +289,43 @@ def mor_plots(df, predictor, response, df_data_types):
 
         # Mean Squared Diff
         # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
-        # print(predictor)
-        # print(list_mean)
-        # print(mean_pop)
         list_mean_clean = [x for x in list_mean if str(x) != "nan"]
-        # print(list_mean_clean)
         mean_total = 0
         for b in list_mean_clean:
             mean_diff = (b - mean_pop) ** 2
             mean_total += mean_diff
-        # print(mean_total)
         msq = mean_total * 0.1
-        print(predictor, "- Mean Squared Diff")
-        print(msq)
+        # print(predictor, "- Mean Squared Diff")
+        # print(msq)
 
         # Mean Squared Diff - Weighted
         # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
         # source : https://stackoverflow.com/questions/62534773/remove-nan-values-from-a-dict-in-python
         # source : https://stackoverflow.com/questions/3294889/iterating-over-dictionaries-using-for-loops
-
-        # print(list_hist_pop)
         total_pop = sum(list_hist_pop)
-        # print(total_pop)
 
+        # set weights for each bin
         weights_list = []
         for p in list_hist_pop:
             div_p = p / total_pop
             weights_list.append(div_p)
 
         mean_weight_dict = dict(zip(list_mean, weights_list))
-        # print(mean_weight_dict)
 
+        # only include weights for bins where the mean exists
         clean_dict = {
             key: value
             for (key, value) in mean_weight_dict.items()
             if not math.isnan(key)
         }
-        # print(clean_dict)
 
+        # Calculate the mean squared diff - weighted
         msqw = 0
         for key, value in clean_dict.items():
             mean_diff = value * ((key - mean_pop) ** 2)
             msqw += mean_diff
-        print(predictor, "- Mean Squared Diff - Weighted")
-        print(msqw)
+        # print(predictor, "- Mean Squared Diff - Weighted")
+        # print(msqw)
 
         # Plot Creation
         fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -284,7 +357,8 @@ def mor_plots(df, predictor, response, df_data_types):
             file=f"Output_Plots/mean_cont_{predictor}.html",
             include_plotlyjs="cdn",
         )
-        return msq, msqw
+        f_path = f"mean_cont_{predictor}.html"
+        return msq, msqw, f_path
 
     else:
         amount = df[df[response] == 1].shape[0]
@@ -318,8 +392,8 @@ def mor_plots(df, predictor, response, df_data_types):
             mean_total += mean_diff
         # print(mean_total)
         msq = mean_total * 0.1
-        print(predictor, "- Mean Squared Diff")
-        print(msq)
+        # print(predictor, "- Mean Squared Diff")
+        # print(msq)
 
         # Mean Squared Diff - Weighted
         # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
@@ -340,8 +414,8 @@ def mor_plots(df, predictor, response, df_data_types):
         for key, value in mean_weight_dict.items():
             mean_diff = value * ((key - mean_pop) ** 2)
             msqw += mean_diff
-        print(predictor, "- Mean Squared Diff - Weighted")
-        print(msqw)
+        # print(predictor, "- Mean Squared Diff - Weighted")
+        # print(msqw)
 
         # Plot Creation
         fig_2 = make_subplots(specs=[[{"secondary_y": True}]])
@@ -373,7 +447,8 @@ def mor_plots(df, predictor, response, df_data_types):
             file=f"Output_Plots/mean_cat_{predictor}.html",
             include_plotlyjs="cdn",
         )
-        return msq, msqw
+        f_path = f"mean_cat_{predictor}.html"
+        return msq, msqw, f_path
 
 
 def main():
@@ -416,22 +491,45 @@ def main():
     dict_print(df_data_types)
 
     # df_final = pd.DataFrame(columns=['Predictor', 'Type', 't_value', 'p_value', 'DMR', 'wDMR', 'Plot', 'DMR_Plot'])
-    df_final = pd.DataFrame(
-        columns=["Predictor", "Type", "t_value", "p_value", "DMR", "wDMR"]
-    )
 
     # df.loc[len(df)] = [predictor, type, pval, tval, DMR, wDMR, plot link, dmr plot link]
+
+    # define continuous predictors
     cont = []
+    for predictor in predictors:
+        if df_data_types[predictor] == "continuous":
+            cont.append(predictor)
+        all_continuous = df[df.columns.intersection(cont)]
+        df_continuous = pd.DataFrame(all_continuous)
+    print(df_continuous)
+    importance_dict = random_forest_features(df, df_continuous, response, df_data_types)
+    importance_df = pd.DataFrame(importance_dict.items(), columns=["Pred", "RFI"])
+    print(importance_df.head())
+
+    df_final = pd.DataFrame(
+        columns=[
+            "Predictor",
+            "Type",
+            "t_value",
+            "p_value",
+            "DMR",
+            "wDMR",
+            "DMR_plot",
+            "Plot",
+        ]
+    )
+
     # generate plots, get p values and t scores, mean of response data
+    # Adrian and I
     for predictor in predictors:
         print_heading(predictor)
-        print("data type: ", df_data_types[predictor])
-        initial_plots(df, predictor, response, df_data_types)
-        # pt_scores(df, predictor, response, df_data_types)
-        mor_plots(df, predictor, response, df_data_types)
-        # pt_scores(df, predictor, response, df_data_types)
+        # print("data type: ", df_data_types[predictor])
+        if_path = initial_plots(df, predictor, response, df_data_types)
+        # mor_plots(df, predictor, response, df_data_types)
         t_val, p_val = pt_scores(df, predictor, response, df_data_types)
-        DMR, wDMR = mor_plots(df, predictor, response, df_data_types)
+        DMR, wDMR, f_path = mor_plots(df, predictor, response, df_data_types)
+        m_link = f'<a href="{f_path}">link</a>'
+        i_link = f'<a href="{if_path}">link</a>'
         df_final.loc[len(df_final)] = [
             predictor,
             df_data_types[predictor],
@@ -439,22 +537,21 @@ def main():
             p_val,
             DMR,
             wDMR,
+            m_link,
+            i_link,
         ]
 
-        if df_data_types[predictor] == "continuous":
-            cont.append(predictor)
-    all_continuous = df[df.columns.intersection(cont)]
-    df_continuous = pd.DataFrame(all_continuous)
-    # run random forest with chosen predictors
-    random_forest_features(df, df_continuous, response, df_data_types)
     print(df_final.head(20))
-    f = open("Output_Plots/final_print_ranking.html", "w")
+
+    f = open("Output_Plots/final_print_ranking_test.html", "w")
     res = df_final.to_html(
         render_links=True,
         escape=False,
     )
     f.write(res)
     f.close()
+
+    '''
 
     # Random Forest Feature Importance
     # source : https://stackoverflow.com/questions/12725417/drop-non-numeric-columns-from-a-pandas-dataframe
@@ -471,7 +568,9 @@ def main():
 
     # run random forest with chosen predictors
     random_forest_features(df, df_continuous, response, df_data_types)
-    """
+
+    # [0.45762974 0.05309599 0.05681159 0.43246267]
+    '''
 
     return 0
 
