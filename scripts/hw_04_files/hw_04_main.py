@@ -21,27 +21,27 @@ from sklearn.preprocessing import StandardScaler
 
 
 def print_heading(title):
+    # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture02.html#/7/5/0
     print("*" * 80)
     print(title)
     print("*" * 80)
     return
-    # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture02.html#/7/5/0
 
 
 def dict_print(dct):
+    # source : https://stackoverflow.com/questions/44689546/how-to-print-out-a-dictionary-nicely-in-python
     for predictor, types in dct.items():
         print("{} : {}".format(predictor, types))
-    # source : https://stackoverflow.com/questions/44689546/how-to-print-out-a-dictionary-nicely-in-python
 
 
 def create_folder():
+    # source : https: // www.geeksforgeeks.org / create - a - directory - in -python /
     path = os.getcwd() + "/Output_Plots"
     if os.path.exists(path):
         pass
     else:
         os.mkdir(path)
         print("Output Folder Created, View Generated Charts Inside")
-        # source : https: // www.geeksforgeeks.org / create - a - directory - in -python /
 
 
 def initial_plots(df, predictor, response, df_data_types):
@@ -54,6 +54,7 @@ def initial_plots(df, predictor, response, df_data_types):
                 file=f"Output_Plots/violin_bool_response_cont_predictor_{predictor}.html",
                 include_plotlyjs="cdn",
             )
+            # output path for link
             if_path = f"violin_bool_response_cont_predictor_{predictor}.html"
 
             # distribution plot
@@ -72,6 +73,7 @@ def initial_plots(df, predictor, response, df_data_types):
                 file=f"Output_Plots/heatmap_bool_response_cat_predictor_{predictor}.html",
                 include_plotlyjs="cdn",
             )
+            # output path for link
             if_path = f"heatmap_bool_response_cat_predictor_{predictor}.html"
             return if_path
     else:
@@ -88,6 +90,7 @@ def initial_plots(df, predictor, response, df_data_types):
                 file=f"Output_Plots/dist_cont_response_cat_predictor_{predictor}.html",
                 include_plotlyjs="cdn",
             )
+            # output path for link
             if_path = f"violin_cont_response_cat_predictor_{predictor}.html"
             return if_path
         else:
@@ -98,6 +101,7 @@ def initial_plots(df, predictor, response, df_data_types):
                 file=f"Output_Plots/scatter_cont_response_cont_predictor_{predictor}.html",
                 include_plotlyjs="cdn",
             )
+            # output path for link
             if_path = f"scatter_cont_response_cont_predictor_{predictor}.html"
             return if_path
 
@@ -111,6 +115,7 @@ def pt_scores(df, predictor, response, df_data_types):
         and df_data_types[predictor] == "continuous"
     ):
         # linear regression model
+        # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture07.html#/5/1
         linear_pred = sm.add_constant(X)
         linear_regression_model = sm.OLS(Y, linear_pred)
         linear_regression_model_fitted = linear_regression_model.fit()
@@ -130,18 +135,17 @@ def pt_scores(df, predictor, response, df_data_types):
             include_plotlyjs="cdn",
         )
         return t_value, p_value
-        # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture07.html#/5/1
     elif (
         df_data_types[response] == "boolean"
         and df_data_types[predictor] == "continuous"
     ):
         # logistic regression model
+        # source : https://www.geeksforgeeks.org/logistic-regression-using-statsmodels/
         log_pred = sm.add_constant(X)
         logistic_regression_model = sm.Logit(Y, log_pred)
         logistic_regression_model_fitted = logistic_regression_model.fit()
         print(f"Variable: {predictor}")
         print(logistic_regression_model_fitted.summary())
-        # source : https://www.geeksforgeeks.org/logistic-regression-using-statsmodels/
 
         t_value = round(logistic_regression_model_fitted.tvalues[1], 6)
         p_value = "{:.6e}".format(logistic_regression_model_fitted.pvalues[1])
@@ -179,13 +183,14 @@ def random_forest_features(df, df_continuous, response, df_data_types):
         importances_list = list(importances)
         columns_list = df_continuous.columns.to_list()
 
-        # print(columns_list)
-        # print(importances_list)
+        # output columns and feature importance as a dictionary
         col_imp_dict = dict(zip(columns_list, importances_list))
         print(col_imp_dict)
         return col_imp_dict
 
     else:
+        # response is continuous, use regressor
+        # source : https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html
         rfr = RandomForestRegressor(random_state=1234)
         rfr.fit(X_orig, np.ravel(Y_orig))
         # This .ravel() was suggested by PyCharm when I got an error message
@@ -193,73 +198,10 @@ def random_forest_features(df, df_continuous, response, df_data_types):
         importances_list = list(importances)
         columns_list = df_continuous.columns.to_list()
 
-        # print(columns_list)
-        # print(importances_list)
+        # output columns and feature importance as a dictionary
         col_imp_dict = dict(zip(columns_list, importances_list))
         print(col_imp_dict)
         return col_imp_dict
-
-
-def random_forest_features_2(df, df_continuous, predictor, response, df_data_types):
-    X_orig = df_continuous.values
-    Y_orig = df[response].values
-    if df_data_types[predictor] == "continuous":
-        # Random Forest
-        # print_heading("Random Feature Importance")
-        if df_data_types[response] == "boolean":
-            # source : https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
-            # source : https://mljar.com/blog/feature-importance-in-random-forest/
-            sc = StandardScaler()
-            X_scale = sc.fit_transform(X_orig)
-            rfc = RandomForestClassifier(random_state=1234)
-            rfc.fit(X_scale, np.ravel(Y_orig))
-            # This .ravel() was suggested by PyCharm when I got an error message
-            importances = rfc.feature_importances_
-            importances_list = list(importances)
-            columns_list = df_continuous.columns.to_list()
-            # print(df_continuous.columns)
-            # print(importances)
-            # print(columns_list)
-            # print(importances_list)
-            col_imp_dict = dict(zip(columns_list, importances_list))
-            print(col_imp_dict)
-
-            imp_value = 0
-            for key, value in col_imp_dict.items():
-                if key == predictor:
-                    imp_value = value
-                else:
-                    print(predictor)
-                    print("null here")
-                    imp_value = "NaN"
-            print(imp_value)
-            return imp_value
-
-        else:
-            rfr = RandomForestRegressor(random_state=1234)
-            rfr.fit(X_orig, np.ravel(Y_orig))
-            # This .ravel() was suggested by PyCharm when I got an error message
-            importances = rfr.feature_importances_
-            importances_list = list(importances)
-            columns_list = df_continuous.columns.to_list()
-
-            # print(columns_list)
-            # print(importances_list)
-            col_imp_dict = dict(zip(columns_list, importances_list))
-            # print(col_imp_dict)
-
-            imp_value = 0
-            for key, value in col_imp_dict.items():
-                if predictor == key:
-                    imp_value = value
-                else:
-                    imp_value = "NaN"
-            print(imp_value)
-            return imp_value
-    else:
-        imp_value = "NaN"
-        print(imp_value)
-        return imp_value
 
 
 def mor_plots(df, predictor, response, df_data_types):
@@ -272,6 +214,7 @@ def mor_plots(df, predictor, response, df_data_types):
         amount = df[df[response] == 1].shape[0]
         mean_pop = amount / count
 
+        # define bins for continuous variables
         hist_pop, bin_edges = np.histogram(df[predictor], bins=10)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) * 0.5
         grouped = df.groupby(pd.cut(df[predictor], bins=bin_edges))
@@ -284,9 +227,6 @@ def mor_plots(df, predictor, response, df_data_types):
         list_bin_edges = list(bin_edges)
         first_last_edges = [list_bin_edges[0], list_bin_edges[-1]]
 
-        # ((mean of bin1 - mean of pop)^2 + (mean of bin2 - mean of pop)^2 .. etc ) / # bins
-        # (weight* (mean of bin1 - mean of pop)^2 )+
-
         # Mean Squared Diff
         # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
         list_mean_clean = [x for x in list_mean if str(x) != "nan"]
@@ -295,8 +235,6 @@ def mor_plots(df, predictor, response, df_data_types):
             mean_diff = (b - mean_pop) ** 2
             mean_total += mean_diff
         msq = mean_total * 0.1
-        # print(predictor, "- Mean Squared Diff")
-        # print(msq)
 
         # Mean Squared Diff - Weighted
         # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
@@ -310,6 +248,7 @@ def mor_plots(df, predictor, response, df_data_types):
             div_p = p / total_pop
             weights_list.append(div_p)
 
+        # make into dictionary with bin means
         mean_weight_dict = dict(zip(list_mean, weights_list))
 
         # only include weights for bins where the mean exists
@@ -324,8 +263,6 @@ def mor_plots(df, predictor, response, df_data_types):
         for key, value in clean_dict.items():
             mean_diff = value * ((key - mean_pop) ** 2)
             msqw += mean_diff
-        # print(predictor, "- Mean Squared Diff - Weighted")
-        # print(msqw)
 
         # Plot Creation
         fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -357,13 +294,14 @@ def mor_plots(df, predictor, response, df_data_types):
             file=f"Output_Plots/mean_cont_{predictor}.html",
             include_plotlyjs="cdn",
         )
+        # output path for link
         f_path = f"mean_cont_{predictor}.html"
         return msq, msqw, f_path
 
     else:
+        # find plots and values for categorical predictors
         amount = df[df[response] == 1].shape[0]
         mean_pop = amount / count
-        # print(mean_pop)
 
         # get bin values, counts, and mean
         # source : https://towardsdatascience.com/11-examples-to-master-pandas-groupby-function-86e0de574f38
@@ -379,43 +317,34 @@ def mor_plots(df, predictor, response, df_data_types):
         # set bin edges for overall mean
         first_last_bins = [bin_values[0], bin_values[-1]]
 
-        # ((mean of bin1 - mean of pop)^2 + (mean of bin2 - mean of pop)^2 .. etc ) / # bins
-        # (weight* (mean of bin1 - mean of pop)^2 )+
-
         # Mean Squared Diff
         # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
-        # print(predictor)
-
         mean_total = 0
         for b in bin_mean:
             mean_diff = (b - mean_pop) ** 2
             mean_total += mean_diff
-        # print(mean_total)
         msq = mean_total * 0.1
-        # print(predictor, "- Mean Squared Diff")
-        # print(msq)
 
         # Mean Squared Diff - Weighted
         # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
         # source : https://stackoverflow.com/questions/62534773/remove-nan-values-from-a-dict-in-python
         # source : https://stackoverflow.com/questions/3294889/iterating-over-dictionaries-using-for-loops
 
+        # set weights for each bin
         total_pop = sum(bin_counts)
-        # print(total_pop)
         bin_weights = []
         for p in bin_counts:
             div_p = p / total_pop
             bin_weights.append(div_p)
 
+        # make dictionary with bin means and weights
         mean_weight_dict = dict(zip(bin_mean, bin_weights))
-        # print(mean_weight_dict)
 
+        # Calculate
         msqw = 0
         for key, value in mean_weight_dict.items():
             mean_diff = value * ((key - mean_pop) ** 2)
             msqw += mean_diff
-        # print(predictor, "- Mean Squared Diff - Weighted")
-        # print(msqw)
 
         # Plot Creation
         fig_2 = make_subplots(specs=[[{"secondary_y": True}]])
@@ -447,11 +376,14 @@ def mor_plots(df, predictor, response, df_data_types):
             file=f"Output_Plots/mean_cat_{predictor}.html",
             include_plotlyjs="cdn",
         )
+        # output path for link
         f_path = f"mean_cat_{predictor}.html"
         return msq, msqw, f_path
 
 
 def main():
+    # setting the global was suggested by pycharm
+    global df_continuous
     pd.set_option("display.max_rows", 10)
     pd.set_option("display.max_columns", 500)
     pd.set_option("display.width", 1_000)
@@ -490,10 +422,6 @@ def main():
     # I found a nicer way to print the dictionary
     dict_print(df_data_types)
 
-    # df_final = pd.DataFrame(columns=['Predictor', 'Type', 't_value', 'p_value', 'DMR', 'wDMR', 'Plot', 'DMR_Plot'])
-
-    # df.loc[len(df)] = [predictor, type, pval, tval, DMR, wDMR, plot link, dmr plot link]
-
     # define continuous predictors
     cont = []
     for predictor in predictors:
@@ -501,13 +429,13 @@ def main():
             cont.append(predictor)
         all_continuous = df[df.columns.intersection(cont)]
         df_continuous = pd.DataFrame(all_continuous)
-    print(df_continuous)
     importance_dict = random_forest_features(df, df_continuous, response, df_data_types)
     importance_df = pd.DataFrame(
         importance_dict.items(), columns=["Pred", "RF_Importance"]
     )
     print(importance_df.head())
 
+    # create final dataset for the printout
     df_final = pd.DataFrame(
         columns=[
             "Predictor",
@@ -522,16 +450,18 @@ def main():
     )
 
     # generate plots, get p values and t scores, mean of response data
-    # Adrian and I
     for predictor in predictors:
         print_heading(predictor)
-        # print("data type: ", df_data_types[predictor])
         if_path = initial_plots(df, predictor, response, df_data_types)
-        # mor_plots(df, predictor, response, df_data_types)
         t_val, p_val = pt_scores(df, predictor, response, df_data_types)
         DMR, wDMR, f_path = mor_plots(df, predictor, response, df_data_types)
+
+        # setup links for printout
+        # source : https://stackoverflow.com/questions/12021781/the-right-way-of-setting-a-href-when-its-a-local-file
         m_link = f'<a href="{f_path}">link</a>'
         i_link = f'<a href="{if_path}">link</a>'
+
+        # append each predictor's values to a new row
         df_final.loc[len(df_final)] = [
             predictor,
             df_data_types[predictor],
@@ -543,46 +473,23 @@ def main():
             i_link,
         ]
 
-    print(df_final.head(20))
-    # merge with Random Forest Data
+    # merge with Random Forest Data (since this was calculated for continuous variables only)
     # source : https://realpython.com/pandas-merge-join-and-concat/#pandas-merge-combining-data-on-
     # common-columns-or-indices
-
     merged_df = pd.merge(
         df_final, importance_df, how="left", left_on="Predictor", right_on="Pred"
     )
-    print(merged_df.head())
     clean_df = merged_df.drop("Pred", axis=1)
     print(clean_df.head(20))
 
-    f = open("Output_Plots/final_print_ranking_test.html", "w")
+    # write to html file
+    f = open("Output_Plots/final_print_ranking.html", "w")
     res = clean_df.to_html(
         render_links=True,
         escape=False,
     )
     f.write(res)
     f.close()
-
-    '''
-
-    # Random Forest Feature Importance
-    # source : https://stackoverflow.com/questions/12725417/drop-non-numeric-columns-from-a-pandas-dataframe
-    # source : https://stackoverflow.com/questions/56891518/drop-columns-from-pandas-dataframe-
-    # source ^ : if-they-are-not-in-specific-list
-    # separate predictors to only include continuous ones
-    """
-    cont = []
-    for predictor in predictors:
-        if df_data_types[predictor] == "continuous":
-            cont.append(predictor)
-    all_continuous = df[df.columns.intersection(cont)]
-    df_continuous = pd.DataFrame(all_continuous)
-
-    # run random forest with chosen predictors
-    random_forest_features(df, df_continuous, response, df_data_types)
-
-    # [0.45762974 0.05309599 0.05681159 0.43246267]
-    '''
 
     return 0
 
