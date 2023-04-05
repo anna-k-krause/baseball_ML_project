@@ -231,15 +231,19 @@ def mor_plots(df, predictor, response, df_data_types):
         return msq, msqw, f_path
 
 
-def cont_correlation(df_continuous, px, py):
-    predictor_x = df_continuous[px]
-    predictor_y = df_continuous[py]
+def cont_correlation(df_continuous, cont_1, cont_2):
+    predictor_x = df_continuous[cont_1]
+    predictor_y = df_continuous[cont_2]
 
     res = stats.pearsonr(predictor_x, predictor_y)
-    print(res)
+    res_stat = res[0]
+    # print(res_stat)
+    return res_stat
 
 
-def cat_correlation(df_categorical, px, py, bias_correction=True, tschuprow=False):
+def cat_correlation(
+    df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=False
+):
     """
     Calculates correlation statistic for categorical-categorical association.
     The two measures supported are:
@@ -272,8 +276,8 @@ def cat_correlation(df_categorical, px, py, bias_correction=True, tschuprow=Fals
     float in the range of [0,1]
     """
 
-    x = df_categorical[px]
-    y = df_categorical[py]
+    x = df_categorical[cat_1]
+    y = df_categorical[cat_2]
     corr_coeff = np.nan
     try:
         x, y = fill_na(x), fill_na(y)
@@ -300,31 +304,26 @@ def cat_correlation(df_categorical, px, py, bias_correction=True, tschuprow=Fals
                 corr_coeff = np.sqrt(
                     phi2_corrected / np.sqrt((r_corrected - 1) * (c_corrected - 1))
                 )
-                print(corr_coeff)
-                # return corr_coeff
+                return corr_coeff
             corr_coeff = np.sqrt(
                 phi2_corrected / min((r_corrected - 1), (c_corrected - 1))
             )
-            print(corr_coeff)
-            # return corr_coeff
+            return corr_coeff
         if tschuprow:
             corr_coeff = np.sqrt(phi2 / np.sqrt((r - 1) * (c - 1)))
-            print(corr_coeff)
-            # return corr_coeff
+            return corr_coeff
         corr_coeff = np.sqrt(phi2 / min((r - 1), (c - 1)))
-        print(corr_coeff)
-        # return corr_coeff
+        return corr_coeff
     except Exception as ex:
         print(ex)
         if tschuprow:
             warnings.warn("Error calculating Tschuprow's T", RuntimeWarning)
         else:
             warnings.warn("Error calculating Cramer's V", RuntimeWarning)
-        print(corr_coeff)
-        # return corr_coeff
+        return corr_coeff
 
 
-def cat_cont_correlation_ratio(df_continuous, df_categorical, p_cat, p_cont):
+def cat_cont_correlation_ratio(df_categorical, df_continuous, p_cat, p_cont):
     """
     Correlation Ratio: https://en.wikipedia.org/wiki/Correlation_ratio
     SOURCE:
@@ -353,14 +352,14 @@ def cat_cont_correlation_ratio(df_continuous, df_categorical, p_cat, p_cont):
         eta = 0.0
     else:
         eta = np.sqrt(numerator / denominator)
-    print(eta)
-    # return eta
+    # print(eta)
+    return eta
 
 
 def main():
     # setting the global was suggested by pycharm
     global df_continuous, df_categorical
-    pd.set_option("display.max_rows", 10)
+    pd.set_option("display.max_rows", 20)
     pd.set_option("display.max_columns", 500)
     pd.set_option("display.width", 1_000)
 
@@ -369,7 +368,7 @@ def main():
 
     # import datasets from a modified dataset_loader.py file
     test_datasets = TestDatasets()
-    df, predictors, response = test_datasets.get_test_data_set(data_set_name="titanic")
+    df, predictors, response = test_datasets.get_test_data_set(data_set_name="tips")
     # continuous response test_sets : ["mpg", "tips", "diabetes"]
     # bool response test_sets : ["titanic", "breast_cancer"]
     df = df.dropna()
@@ -418,20 +417,64 @@ def main():
     print(cat_predictors)
     print(df_categorical)
 
-    for px in cont_predictors:
-        for py in cont_predictors:
-            print(px, py)
-            cont_correlation(df_continuous, px, py)
+    print_heading("Continuous/Continuous")
+    # create dataset for the printout
+    df_cont_cont = pd.DataFrame(columns=["cont_1", "cont_2", "pearson_corr"])
+    for cont_1 in cont_predictors:
+        for cont_2 in cont_predictors:
+            p_corr = cont_correlation(df_continuous, cont_1, cont_2)
 
-    for px in cat_predictors:
-        for py in cat_predictors:
-            print(px, py)
-            cat_correlation(df_categorical, px, py)
+            df_cont_cont.loc[len(df_cont_cont)] = [cont_1, cont_2, p_corr]
+    print(df_cont_cont)
+    # source : https://www.geeksforgeeks.org/python-pandas-pivot_table/
+    ptable_cont = pd.pivot_table(df_cont_cont, index="cont_1", columns="cont_2")
+    print(ptable_cont)
 
+    print_heading("Categorical/Categorical")
+    # create final dataset for the printout
+    df_cat_cat_cramer = pd.DataFrame(columns=["cat_1", "cat_2", "cramer_corr"])
+    # fill data
+    for cat_1 in cat_predictors:
+        for cat_2 in cat_predictors:
+            cramer_corr = cat_correlation(
+                df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=False
+            )
+            df_cat_cat_cramer.loc[len(df_cat_cat_cramer)] = [cat_1, cat_2, cramer_corr]
+    print(df_cat_cat_cramer)
+    ptable_cramer = pd.pivot_table(df_cat_cat_cramer, index="cat_1", columns="cat_2")
+    print(ptable_cramer)
+
+    # create final dataset for the printout
+    df_cat_cat_tschuprow = pd.DataFrame(columns=["cat_1", "cat_2", "tschuprow_corr"])
+    # fill data
+    for cat_1 in cat_predictors:
+        for cat_2 in cat_predictors:
+            tschuprow_corr = cat_correlation(
+                df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=True
+            )
+            df_cat_cat_tschuprow.loc[len(df_cat_cat_tschuprow)] = [
+                cat_1,
+                cat_2,
+                tschuprow_corr,
+            ]
+    print(df_cat_cat_tschuprow)
+    ptable_tschuprow = pd.pivot_table(
+        df_cat_cat_tschuprow, index="cat_1", columns="cat_2"
+    )
+    print(ptable_tschuprow)
+
+    print_heading("Categorical/Continuous")
+
+    df_cat_cont = pd.DataFrame(columns=["p_cat", "p_cont", "corr"])
     for p_cat in cat_predictors:
         for p_cont in cont_predictors:
-            print(p_cat, p_cont)
-            cat_cont_correlation_ratio(df_continuous, df_categorical, p_cat, p_cont)
+            corr = cat_cont_correlation_ratio(
+                df_categorical, df_continuous, p_cat, p_cont
+            )
+            df_cat_cont.loc[len(df_cat_cont)] = [p_cat, p_cont, corr]
+    print(df_cat_cont)
+    ptable_cc = pd.pivot_table(df_cat_cont, index="p_cat", columns="p_cont")
+    print(ptable_cc)
 
     return 0
 
