@@ -15,8 +15,7 @@ import plotly.graph_objects as go
 # import scipy.stats
 # import statsmodels.api as sm
 from dataset_loader import TestDatasets
-
-# from plotly import express as px
+from plotly import express as px
 from plotly.subplots import make_subplots
 from scipy import stats
 
@@ -61,12 +60,19 @@ def mor_plots(df, predictor, response, df_data_types):
         # source : https://linuxhint.com/python-numpy-histogram/
         # source : https://stackoverflow.com/questions/72688853/get-center-of-bins-histograms-python
         # source : https://stackoverflow.com/questions/34317149/pandas-groupby-with-bin-counts
-        amount = df[df[response] == 1].shape[0]
+        # amount = df[df[response] == 1].shape[0] -- old
+        amount = sum(df[response])
         mean_pop = amount / count
+        bin_count = 10
 
         # define bins for continuous variables
-        hist_pop, bin_edges = np.histogram(df[predictor], bins=10)
+        hist_pop, bin_edges = np.histogram(df[predictor], bins=bin_count)
+
+        # make this adjustment so that the lower bound is included
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) * 0.5
+        for p in range(0, len(bin_edges) - 1):
+            bin_edges[p] -= 0.00000001
+        bin_edges[-1] += 0.00000001
         grouped = df.groupby(pd.cut(df[predictor], bins=bin_edges))
         grouped_mean = grouped[response].mean()
 
@@ -84,12 +90,12 @@ def mor_plots(df, predictor, response, df_data_types):
         for b in list_mean_clean:
             mean_diff = (b - mean_pop) ** 2
             mean_total += mean_diff
-        msq = mean_total * 0.1
+        msq = mean_total * (1 / bin_count)
 
         # Mean Squared Diff - Weighted
         # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
-        # source : https://stackoverflow.com/questions/62534773/remove-nan-values-from-a-dict-in-python
-        # source : https://stackoverflow.com/questions/3294889/iterating-over-dictionaries-using-for-loops
+        # source : https://www.askpython.com/python/list/python-list-of-tuples
+        # source : https://stackoverflow.com/questions/37486938/remove-a-tuple-containing-nan-in-list-of-tuples-python
         total_pop = sum(list_hist_pop)
 
         # set weights for each bin
@@ -98,20 +104,18 @@ def mor_plots(df, predictor, response, df_data_types):
             div_p = p / total_pop
             weights_list.append(div_p)
 
-        # make into dictionary with bin means
-        mean_weight_dict = dict(zip(list_mean, weights_list))
+        # make into list of tuples with bin means
+        mean_weight_list = list(zip(list_mean, weights_list))
+        clean_mn_list = [
+            t
+            for t in mean_weight_list
+            if not any(isinstance(n, float) and math.isnan(n) for n in t)
+        ]
 
-        # only include weights for bins where the mean exists
-        clean_dict = {
-            key: value
-            for (key, value) in mean_weight_dict.items()
-            if not math.isnan(key)
-        }
-
-        # Calculate the mean squared diff - weighted
+        # calculate weighted msq
         msqw = 0
-        for key, value in clean_dict.items():
-            mean_diff = value * ((key - mean_pop) ** 2)
+        for (m, w) in clean_mn_list:
+            mean_diff = w * ((m - mean_pop) ** 2)
             msqw += mean_diff
 
         # Plot Creation
@@ -150,8 +154,10 @@ def mor_plots(df, predictor, response, df_data_types):
 
     else:
         # find plots and values for categorical predictors
-        amount = df[df[response] == 1].shape[0]
+        # amount = df[df[response] == 1].shape[0] -- old
+        amount = sum(df[response])
         mean_pop = amount / count
+        bin_count = len(np.sort(df[predictor].unique()))
 
         # get bin values, counts, and mean
         # source : https://towardsdatascience.com/11-examples-to-master-pandas-groupby-function-86e0de574f38
@@ -173,12 +179,12 @@ def mor_plots(df, predictor, response, df_data_types):
         for b in bin_mean:
             mean_diff = (b - mean_pop) ** 2
             mean_total += mean_diff
-        msq = mean_total * 0.1
+        msq = mean_total * (1 / bin_count)
 
         # Mean Squared Diff - Weighted
         # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
-        # source : https://stackoverflow.com/questions/62534773/remove-nan-values-from-a-dict-in-python
-        # source : https://stackoverflow.com/questions/3294889/iterating-over-dictionaries-using-for-loops
+        # source : https://www.askpython.com/python/list/python-list-of-tuples
+        # source : https://stackoverflow.com/questions/37486938/remove-a-tuple-containing-nan-in-list-of-tuples-python
 
         # set weights for each bin
         total_pop = sum(bin_counts)
@@ -187,13 +193,13 @@ def mor_plots(df, predictor, response, df_data_types):
             div_p = p / total_pop
             bin_weights.append(div_p)
 
-        # make dictionary with bin means and weights
-        mean_weight_dict = dict(zip(bin_mean, bin_weights))
+        # make list of tuples with bin means and weights
+        mean_weight_list = list(zip(bin_mean, bin_weights))
 
         # Calculate
         msqw = 0
-        for key, value in mean_weight_dict.items():
-            mean_diff = value * ((key - mean_pop) ** 2)
+        for (m, w) in mean_weight_list:
+            mean_diff = w * ((m - mean_pop) ** 2)
             msqw += mean_diff
 
         # Plot Creation
@@ -356,6 +362,17 @@ def cat_cont_correlation_ratio(df_categorical, df_continuous, p_cat, p_cont):
     return eta
 
 
+def heatmap_maker(pt_df, heatmap_name):
+    fig = px.imshow(pt_df, x=pt_df.columns, y=pt_df.index)
+    fig.write_html(
+        file=f"Output_Plots/heatmap_{heatmap_name}.html",
+        include_plotlyjs="cdn",
+    )
+    # output path for link
+    h_path = f"heatmap_{heatmap_name}.html"
+    return h_path
+
+
 def main():
     # setting the global was suggested by pycharm
     global df_continuous, df_categorical
@@ -397,6 +414,11 @@ def main():
     # I found a nicer way to print the dictionary
     dict_print(df_data_types)
 
+    for predictor in predictors:
+        # print_heading(predictor)
+        DMR, wDMR, f_path = mor_plots(df, predictor, response, df_data_types)
+        # print(DMR, wDMR)
+
     # define continuous predictors
     cont_predictors = []
     for predictor in predictors:
@@ -404,8 +426,8 @@ def main():
             cont_predictors.append(predictor)
         all_continuous = df[df.columns.intersection(cont_predictors)]
         df_continuous = pd.DataFrame(all_continuous)
-    print(cont_predictors)
-    print(df_continuous)
+    # print(cont_predictors)
+    # print(df_continuous)
 
     # define categorical predictors
     cat_predictors = []
@@ -414,67 +436,130 @@ def main():
             cat_predictors.append(predictor)
         all_categorical = df[df.columns.intersection(cat_predictors)]
         df_categorical = pd.DataFrame(all_categorical)
-    print(cat_predictors)
-    print(df_categorical)
+    # print(cat_predictors)
+    # print(df_categorical)
 
     print_heading("Continuous/Continuous")
     # create dataset for the printout
-    df_cont_cont = pd.DataFrame(columns=["cont_1", "cont_2", "pearson_corr"])
+    df_cont_cont = pd.DataFrame(
+        columns=["cont_1", "cont_2", "pearson_corr", "cont_1_url", "cont_2_url"]
+    )
     for cont_1 in cont_predictors:
+        DMR1, wDMR1, f_path_cont_1 = mor_plots(df, cont_1, response, df_data_types)
         for cont_2 in cont_predictors:
             p_corr = cont_correlation(df_continuous, cont_1, cont_2)
+            DMR2, wDMR2, f_path_cont_2 = mor_plots(df, cont_1, response, df_data_types)
 
-            df_cont_cont.loc[len(df_cont_cont)] = [cont_1, cont_2, p_corr]
+            cont_1_link = f'<a href="{f_path_cont_1}">{cont_1}</a>'
+            cont_2_link = f'<a href="{f_path_cont_2}">{cont_2}</a>'
+
+            df_cont_cont.loc[len(df_cont_cont)] = [
+                cont_1,
+                cont_2,
+                p_corr,
+                cont_1_link,
+                cont_2_link,
+            ]
     print(df_cont_cont)
+
+    # pivot table for matrix graph
     # source : https://www.geeksforgeeks.org/python-pandas-pivot_table/
+    df_cont_cont = df_cont_cont.drop(columns=["cont_1_url", "cont_2_url"])
     ptable_cont = pd.pivot_table(df_cont_cont, index="cont_1", columns="cont_2")
     print(ptable_cont)
+    heatmap_name = "cont_cont_matrix"
+    cont_path = heatmap_maker(ptable_cont, heatmap_name)
 
     print_heading("Categorical/Categorical")
     # create final dataset for the printout
-    df_cat_cat_cramer = pd.DataFrame(columns=["cat_1", "cat_2", "cramer_corr"])
+    df_cat_cat_cramer = pd.DataFrame(
+        columns=["cat_1", "cat_2", "cramer_corr", "cat_1_url", "cat_2_url"]
+    )
     # fill data
     for cat_1 in cat_predictors:
+        DMR1, wDMR1, f_path_cat_1 = mor_plots(df, cat_1, response, df_data_types)
         for cat_2 in cat_predictors:
             cramer_corr = cat_correlation(
                 df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=False
             )
-            df_cat_cat_cramer.loc[len(df_cat_cat_cramer)] = [cat_1, cat_2, cramer_corr]
+            DMR1, wDMR1, f_path_cat_2 = mor_plots(df, cat_1, response, df_data_types)
+            cat_1c_link = f'<a href="{f_path_cat_1}">{cat_1}</a>'
+            cat_2c_link = f'<a href="{f_path_cat_2}">{cat_2}</a>'
+            df_cat_cat_cramer.loc[len(df_cat_cat_cramer)] = [
+                cat_1,
+                cat_2,
+                cramer_corr,
+                cat_1c_link,
+                cat_2c_link,
+            ]
     print(df_cat_cat_cramer)
+
+    df_cat_cat_cramer = df_cat_cat_cramer.drop(columns=["cat_1_url", "cat_2_url"])
     ptable_cramer = pd.pivot_table(df_cat_cat_cramer, index="cat_1", columns="cat_2")
     print(ptable_cramer)
+    heatmap_name = "cat_cat_cramer_matrix"
+    cramer_path = heatmap_maker(ptable_cramer, heatmap_name)
 
     # create final dataset for the printout
-    df_cat_cat_tschuprow = pd.DataFrame(columns=["cat_1", "cat_2", "tschuprow_corr"])
+    df_cat_cat_tschuprow = pd.DataFrame(
+        columns=["cat_1", "cat_2", "tschuprow_corr", "cat_1_url", "cat_2_url"]
+    )
     # fill data
     for cat_1 in cat_predictors:
+        DMR1, wDMR1, f_path_cat_1 = mor_plots(df, cat_1, response, df_data_types)
         for cat_2 in cat_predictors:
             tschuprow_corr = cat_correlation(
                 df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=True
             )
+            DMR1, wDMR1, f_path_cat_2 = mor_plots(df, cat_2, response, df_data_types)
+            cat_1t_link = f'<a href="{f_path_cat_1}">{cat_1}</a>'
+            cat_2t_link = f'<a href="{f_path_cat_2}">{cat_2}</a>'
             df_cat_cat_tschuprow.loc[len(df_cat_cat_tschuprow)] = [
                 cat_1,
                 cat_2,
                 tschuprow_corr,
+                cat_1t_link,
+                cat_2t_link,
             ]
     print(df_cat_cat_tschuprow)
+
+    df_cat_cat_tschuprow = df_cat_cat_tschuprow.drop(columns=["cat_1_url", "cat_2_url"])
     ptable_tschuprow = pd.pivot_table(
         df_cat_cat_tschuprow, index="cat_1", columns="cat_2"
     )
     print(ptable_tschuprow)
+    heatmap_name = "cat_cat_tschuprow_matrix"
+    tschuprow_path = heatmap_maker(ptable_tschuprow, heatmap_name)
 
     print_heading("Categorical/Continuous")
 
-    df_cat_cont = pd.DataFrame(columns=["p_cat", "p_cont", "corr"])
+    df_cat_cont = pd.DataFrame(
+        columns=["p_cat", "p_cont", "corr", "cat_url", "cont_url"]
+    )
     for p_cat in cat_predictors:
+        DMR1, wDMR1, f_path_cat = mor_plots(df, p_cat, response, df_data_types)
         for p_cont in cont_predictors:
             corr = cat_cont_correlation_ratio(
                 df_categorical, df_continuous, p_cat, p_cont
             )
-            df_cat_cont.loc[len(df_cat_cont)] = [p_cat, p_cont, corr]
+            DMR1, wDMR1, f_path_cont = mor_plots(df, p_cont, response, df_data_types)
+            cat_link = f'<a href="{f_path_cat}">{p_cat}</a>'
+            cont_link = f'<a href="{f_path_cont}">{p_cont}</a>'
+            df_cat_cont.loc[len(df_cat_cont)] = [
+                p_cat,
+                p_cont,
+                corr,
+                cat_link,
+                cont_link,
+            ]
     print(df_cat_cont)
+    df_cat_cont = df_cat_cont.drop(columns=["cat_url", "cont_url"])
     ptable_cc = pd.pivot_table(df_cat_cont, index="p_cat", columns="p_cont")
     print(ptable_cc)
+    heatmap_name = "cat_cont_matrix"
+    cat_path = heatmap_maker(ptable_cc, heatmap_name)
+
+    print(cont_path, cramer_path, tschuprow_path, cat_path)
 
     return 0
 
