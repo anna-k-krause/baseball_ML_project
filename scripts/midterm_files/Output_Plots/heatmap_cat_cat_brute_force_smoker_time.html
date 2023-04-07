@@ -9,43 +9,24 @@
       </script>
       <script src="https://cdn.plot.ly/plotly-2.18.0.min.js"></script>
       <div
-        id="10bcc1ce-1100-4d82-8f94-dc5c3829702a"
+        id="30854f48-0553-40f4-96aa-dd0f1e07602b"
         class="plotly-graph-div"
         style="height: 100%; width: 100%"
       ></div>
       <script type="text/javascript">
         window.PLOTLYENV = window.PLOTLYENV || {};
-        if (document.getElementById("10bcc1ce-1100-4d82-8f94-dc5c3829702a")) {
+        if (document.getElementById("30854f48-0553-40f4-96aa-dd0f1e07602b")) {
           Plotly.newPlot(
-            "10bcc1ce-1100-4d82-8f94-dc5c3829702a",
+            "30854f48-0553-40f4-96aa-dd0f1e07602b",
             [
               {
-                name: "Population",
-                opacity: 0.5,
-                x: ["1", "2", "3"],
-                y: [157, 15, 10],
-                type: "bar",
-                xaxis: "x",
-                yaxis: "y2",
-              },
-              {
-                connectgaps: true,
-                line: { color: "red" },
-                name: "\u00b5i -\u00b5pop",
-                x: ["1", "2", "3"],
-                y: [0.6751592356687898, 0.8, 0.5],
-                type: "scatter",
-                xaxis: "x",
-                yaxis: "y",
-              },
-              {
-                mode: "lines",
-                name: "\u00b5i",
-                x: ["1", "3"],
-                y: [0.6758241758241759, 0.6758241758241759],
-                type: "scatter",
-                xaxis: "x",
-                yaxis: "y",
+                x: ["Dinner", "Lunch"],
+                y: ["No", "Yes"],
+                z: [
+                  [3.1268867924528303, 2.6737777777777776],
+                  [3.0660000000000003, 2.8343478260869563],
+                ],
+                type: "heatmap",
               },
             ],
             {
@@ -471,23 +452,9 @@
                   mapbox: { style: "light" },
                 },
               },
-              xaxis: {
-                anchor: "y",
-                domain: [0.0, 0.94],
-                title: { text: "Predictor Bin" },
-              },
-              yaxis: {
-                anchor: "x",
-                domain: [0.0, 1.0],
-                title: { text: "Response" },
-              },
-              yaxis2: {
-                anchor: "x",
-                overlaying: "y",
-                side: "right",
-                title: { text: "Population" },
-              },
-              title: { text: "pclass" },
+              title: { text: "Categorical/Categorical Brute Force Heatmap" },
+              xaxis: { title: { text: "time" } },
+              yaxis: { title: { text: "smoker" } },
             },
             { responsive: true }
           );

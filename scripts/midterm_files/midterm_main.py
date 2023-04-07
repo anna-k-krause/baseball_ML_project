@@ -373,6 +373,232 @@ def heatmap_maker(pt_df, heatmap_name):
     return h_path
 
 
+def mor_plots_brute_force_cont(df, predictor_1, predictor_2, response, df_data_types):
+    # store length of df in count variable to later calculate mean line
+    count = len(df.index)
+    # source : https://linuxhint.com/python-numpy-histogram/
+    # source : https://stackoverflow.com/questions/72688853/get-center-of-bins-histograms-python
+    # source : https://stackoverflow.com/questions/34317149/pandas-groupby-with-bin-counts
+    print(predictor_1, predictor_2)
+
+    amount = sum(df[response])
+    mean_pop = amount / count
+    bin_count = 10
+
+    # define bins for continuous variables
+    hist_pop_1, bin_edges_1 = np.histogram(df[predictor_1], bins=bin_count)
+    hist_pop_2, bin_edges_2 = np.histogram(df[predictor_2], bins=bin_count)
+
+    # make this adjustment so that the lower bound is included
+    # bin_centers_1 = (bin_edges_1[:-1] + bin_edges_1[1:]) * 0.5
+    # bin_centers_2 = (bin_edges_2[:-1] + bin_edges_2[1:]) * 0.5
+    # print(hist_pop_1, bin_edges_1, bin_centers_1)
+    # print(hist_pop_2, bin_edges_2, bin_centers_2)
+
+    for p in range(0, len(bin_edges_1) - 1):
+        bin_edges_1[p] -= 0.00000001
+        bin_edges_1[-1] += 0.00000001
+    for p in range(0, len(bin_edges_2) - 1):
+        bin_edges_2[p] -= 0.00000001
+        bin_edges_2[-1] += 0.00000001
+
+    # mean of each
+    grouped = df.groupby(
+        [
+            pd.cut(df[predictor_1], bins=bin_edges_1),
+            (pd.cut(df[predictor_2], bins=bin_edges_2)),
+        ]
+    )
+    grouped_mean = grouped[response].mean()
+    # grouped_counts = grouped[response].count()
+    # print(grouped_mean)
+
+    # Convert values to lists for easier graphing
+    list_hist_pop_1 = list(hist_pop_1)
+    list_hist_pop_2 = list(hist_pop_2)
+    # list_bin_centers = list(bin_centers)
+    list_mean = list(grouped_mean)
+    # list_counts = list(grouped_counts)
+    # list_bin_edges = list(bin_edges)
+    # print(list_counts)
+
+    grouped_df = grouped_mean.to_frame()
+    # print(grouped_df.head(10))
+    index_list = grouped_df.index.to_numpy()
+    # print(index_list)
+    mid_i1 = []
+    mid_i2 = []
+    for i1, i2 in index_list:
+        # print(i1.mid, i2.mid)
+        mid_i1.append(i1.mid)
+        mid_i2.append(i2.mid)
+    # print(mid_i1)
+    # print(mid_i2)
+    # print(list_mean)
+
+    reworked_df = pd.DataFrame(
+        list(zip(mid_i1, mid_i2, list_mean)), columns=["cont_1", "cont_2", "mean"]
+    )
+    # print(reworked_df.head())
+    ptable_mean = pd.pivot_table(
+        reworked_df, index="cont_1", columns="cont_2", values="mean"
+    )
+    # print(ptable_mean)
+
+    fig1 = go.Figure(
+        data=go.Heatmap(
+            x=ptable_mean.columns, y=ptable_mean.index, z=ptable_mean.values
+        )
+    )
+    fig1.update_layout(title="Continuous/Continuous Brute Force Heatmap")
+    fig1.update_xaxes(title_text=predictor_2)
+    fig1.update_yaxes(title_text=predictor_1)
+    fig1.write_html(
+        file=f"Output_Plots/heatmap_cont_cont_brute_force_{predictor_1}_{predictor_2}.html",
+        include_plotlyjs="cdn",
+    )
+
+    # Mean Squared Diff
+    # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
+    list_mean_clean = [x for x in list_mean if str(x) != "nan"]
+    mean_total = 0
+    bin_totals = bin_count * bin_count
+    for b in list_mean_clean:
+        mean_diff = (b - mean_pop) ** 2
+        mean_total += mean_diff
+    msq = mean_total * (1 / bin_totals)
+    # print(msq)
+
+    # Mean Squared Diff - Weighted
+    # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
+    # source : https://www.askpython.com/python/list/python-list-of-tuples
+    # source : https://stackoverflow.com/questions/37486938/remove-a-tuple-containing-nan-in-list-of-tuples-python
+
+    total_pop = sum(list_hist_pop_1) + sum(list_hist_pop_2)
+    # print(list_hist_pop_1, list_hist_pop_2)
+    # print(total_pop)
+
+    # set weights for each bin
+    weights_list = []
+    for p in list_hist_pop_1:
+        for b in list_hist_pop_2:
+            div_p = (p + b) / total_pop
+            weights_list.append(div_p)
+    # print(weights_list)
+
+    # make into list of tuples with bin means
+    mean_weight_list = list(zip(list_mean, weights_list))
+    clean_mn_list = [
+        t
+        for t in mean_weight_list
+        if not any(isinstance(n, float) and math.isnan(n) for n in t)
+    ]
+    # print(clean_mn_list)
+
+    # calculate weighted msq
+    msqw = 0
+    for (m, w) in clean_mn_list:
+        mean_diff = w * ((m - mean_pop) ** 2) / bin_count
+        msqw += mean_diff
+    # print(msqw)
+
+    return msq, msqw
+
+
+def mor_plots_brute_force_cat(df, predictor_1, predictor_2, response, df_data_types):
+    # store length of df in count variable to later calculate mean line
+    count = len(df.index)
+    print(predictor_1, predictor_2)
+
+    amount = sum(df[response])
+    mean_pop = amount / count
+    bin_count_1 = len(np.sort(df[predictor_1].unique()))
+    bin_count_2 = len(np.sort(df[predictor_2].unique()))
+
+    # get bin values, counts, and mean
+    # source : https://towardsdatascience.com/11-examples-to-master-pandas-groupby-function-86e0de574f38
+    grouped = df.groupby([df[predictor_1], df[predictor_2]])
+    # print(grouped)
+    grouped_counts = grouped[response].count()
+    grouped_mean = grouped[response].mean()
+    # print(grouped_mean)
+
+    # convert to lists for easier graphing
+    # bin_values = grouped_mean.index.values.tolist()
+    bin_counts = grouped_counts.to_list()
+    bin_mean = grouped_mean.to_list()
+
+    # grouped_graph = df.groupby([df[predictor_1], df[predictor_2]])
+    grouped_df = grouped_mean.to_frame()
+    # print(grouped_df)
+    index_list = grouped_df.index.to_numpy()
+    # print(index_list)
+    list_i1 = []
+    list_i2 = []
+    for i1, i2 in index_list:
+        list_i1.append(i1)
+        list_i2.append(i2)
+    # print(len(list_i1))
+    # print(len(list_i2))
+    # print(len(bin_mean))
+
+    reworked_df = pd.DataFrame(
+        list(zip(list_i1, list_i2, bin_mean)), columns=["cat_1", "cat_2", "mean"]
+    )
+    # print(reworked_df.head())
+    ptable_mean = pd.pivot_table(
+        reworked_df, index="cat_1", columns="cat_2", values="mean"
+    )
+    print(ptable_mean)
+
+    fig1 = go.Figure(
+        data=go.Heatmap(
+            x=ptable_mean.columns, y=ptable_mean.index, z=ptable_mean.values
+        )
+    )
+    fig1.update_layout(title="Categorical/Categorical Brute Force Heatmap")
+    fig1.update_xaxes(title_text=predictor_2)
+    fig1.update_yaxes(title_text=predictor_1)
+    fig1.write_html(
+        file=f"Output_Plots/heatmap_cat_cat_brute_force_{predictor_1}_{predictor_2}.html",
+        include_plotlyjs="cdn",
+    )
+
+    # Mean Squared Diff
+    # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
+    bin_totals = bin_count_1 * bin_count_2
+    mean_total = 0
+    for b in bin_mean:
+        mean_diff = (b - mean_pop) ** 2
+        mean_total += mean_diff
+    msq = mean_total * (1 / bin_totals)
+    # print(msq)
+
+    # Mean Squared Diff - Weighted
+    # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
+    # source : https://www.askpython.com/python/list/python-list-of-tuples
+    # source : https://stackoverflow.com/questions/37486938/remove-a-tuple-containing-nan-in-list-of-tuples-python
+
+    # set weights for each bin
+    total_pop = sum(bin_counts)
+    bin_weights = []
+    for p in bin_counts:
+        div_p = p / total_pop
+        bin_weights.append(div_p)
+
+    # make list of tuples with bin means and weights
+    mean_weight_list = list(zip(bin_mean, bin_weights))
+
+    # Calculate
+    msqw = 0
+    for (m, w) in mean_weight_list:
+        mean_diff = w * ((m - mean_pop) ** 2)
+        msqw += mean_diff
+    # print(msqw)
+
+    return msq, msqw
+
+
 def main():
     # setting the global was suggested by pycharm
     global df_continuous, df_categorical
@@ -460,13 +686,13 @@ def main():
                 cont_1_link,
                 cont_2_link,
             ]
-    print(df_cont_cont)
+    # print(df_cont_cont)
 
     # pivot table for matrix graph
     # source : https://www.geeksforgeeks.org/python-pandas-pivot_table/
     df_cont_cont = df_cont_cont.drop(columns=["cont_1_url", "cont_2_url"])
     ptable_cont = pd.pivot_table(df_cont_cont, index="cont_1", columns="cont_2")
-    print(ptable_cont)
+    # print(ptable_cont)
     heatmap_name = "cont_cont_matrix"
     cont_path = heatmap_maker(ptable_cont, heatmap_name)
 
@@ -492,11 +718,11 @@ def main():
                 cat_1c_link,
                 cat_2c_link,
             ]
-    print(df_cat_cat_cramer)
+    # print(df_cat_cat_cramer)
 
     df_cat_cat_cramer = df_cat_cat_cramer.drop(columns=["cat_1_url", "cat_2_url"])
     ptable_cramer = pd.pivot_table(df_cat_cat_cramer, index="cat_1", columns="cat_2")
-    print(ptable_cramer)
+    # print(ptable_cramer)
     heatmap_name = "cat_cat_cramer_matrix"
     cramer_path = heatmap_maker(ptable_cramer, heatmap_name)
 
@@ -521,13 +747,13 @@ def main():
                 cat_1t_link,
                 cat_2t_link,
             ]
-    print(df_cat_cat_tschuprow)
+    # print(df_cat_cat_tschuprow)
 
     df_cat_cat_tschuprow = df_cat_cat_tschuprow.drop(columns=["cat_1_url", "cat_2_url"])
     ptable_tschuprow = pd.pivot_table(
         df_cat_cat_tschuprow, index="cat_1", columns="cat_2"
     )
-    print(ptable_tschuprow)
+    # print(ptable_tschuprow)
     heatmap_name = "cat_cat_tschuprow_matrix"
     tschuprow_path = heatmap_maker(ptable_tschuprow, heatmap_name)
 
@@ -552,14 +778,24 @@ def main():
                 cat_link,
                 cont_link,
             ]
-    print(df_cat_cont)
+    # print(df_cat_cont)
     df_cat_cont = df_cat_cont.drop(columns=["cat_url", "cont_url"])
     ptable_cc = pd.pivot_table(df_cat_cont, index="p_cat", columns="p_cont")
-    print(ptable_cc)
+    # print(ptable_cc)
     heatmap_name = "cat_cont_matrix"
     cat_path = heatmap_maker(ptable_cc, heatmap_name)
 
     print(cont_path, cramer_path, tschuprow_path, cat_path)
+
+    for cont_1 in cont_predictors:
+        for cont_2 in cont_predictors:
+            if cont_1 != cont_2:
+                mor_plots_brute_force_cont(df, cont_1, cont_2, response, df_data_types)
+
+    for cat_1 in cat_predictors:
+        for cat_2 in cat_predictors:
+            if cat_1 != cat_2:
+                mor_plots_brute_force_cat(df, cat_1, cat_2, response, df_data_types)
 
     return 0
 

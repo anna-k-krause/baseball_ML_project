@@ -9,43 +9,26 @@
       </script>
       <script src="https://cdn.plot.ly/plotly-2.18.0.min.js"></script>
       <div
-        id="10bcc1ce-1100-4d82-8f94-dc5c3829702a"
+        id="2776f17d-b761-4056-90d5-c2c112d420b2"
         class="plotly-graph-div"
         style="height: 100%; width: 100%"
       ></div>
       <script type="text/javascript">
         window.PLOTLYENV = window.PLOTLYENV || {};
-        if (document.getElementById("10bcc1ce-1100-4d82-8f94-dc5c3829702a")) {
+        if (document.getElementById("2776f17d-b761-4056-90d5-c2c112d420b2")) {
           Plotly.newPlot(
-            "10bcc1ce-1100-4d82-8f94-dc5c3829702a",
+            "2776f17d-b761-4056-90d5-c2c112d420b2",
             [
               {
-                name: "Population",
-                opacity: 0.5,
-                x: ["1", "2", "3"],
-                y: [157, 15, 10],
-                type: "bar",
-                xaxis: "x",
-                yaxis: "y2",
-              },
-              {
-                connectgaps: true,
-                line: { color: "red" },
-                name: "\u00b5i -\u00b5pop",
-                x: ["1", "2", "3"],
-                y: [0.6751592356687898, 0.8, 0.5],
-                type: "scatter",
-                xaxis: "x",
-                yaxis: "y",
-              },
-              {
-                mode: "lines",
-                name: "\u00b5i",
-                x: ["1", "3"],
-                y: [0.6758241758241759, 0.6758241758241759],
-                type: "scatter",
-                xaxis: "x",
-                yaxis: "y",
+                x: ["Female", "Male"],
+                y: ["Fri", "Sat", "Sun", "Thur"],
+                z: [
+                  [2.781111111111111, 2.693],
+                  [2.8017857142857143, 3.0838983050847455],
+                  [3.3672222222222223, 3.220344827586207],
+                  [2.575625, 2.9803333333333333],
+                ],
+                type: "heatmap",
               },
             ],
             {
@@ -471,23 +454,9 @@
                   mapbox: { style: "light" },
                 },
               },
-              xaxis: {
-                anchor: "y",
-                domain: [0.0, 0.94],
-                title: { text: "Predictor Bin" },
-              },
-              yaxis: {
-                anchor: "x",
-                domain: [0.0, 1.0],
-                title: { text: "Response" },
-              },
-              yaxis2: {
-                anchor: "x",
-                overlaying: "y",
-                side: "right",
-                title: { text: "Population" },
-              },
-              title: { text: "pclass" },
+              title: { text: "Categorical/Categorical Brute Force Heatmap" },
+              xaxis: { title: { text: "sex" } },
+              yaxis: { title: { text: "day" } },
             },
             { responsive: true }
           );

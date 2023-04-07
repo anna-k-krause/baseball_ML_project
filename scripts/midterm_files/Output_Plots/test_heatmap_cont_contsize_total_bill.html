@@ -9,43 +9,81 @@
       </script>
       <script src="https://cdn.plot.ly/plotly-2.18.0.min.js"></script>
       <div
-        id="10bcc1ce-1100-4d82-8f94-dc5c3829702a"
+        id="4ef36efa-e396-4378-9f5b-a8907fa45686"
         class="plotly-graph-div"
         style="height: 100%; width: 100%"
       ></div>
       <script type="text/javascript">
         window.PLOTLYENV = window.PLOTLYENV || {};
-        if (document.getElementById("10bcc1ce-1100-4d82-8f94-dc5c3829702a")) {
+        if (document.getElementById("4ef36efa-e396-4378-9f5b-a8907fa45686")) {
           Plotly.newPlot(
-            "10bcc1ce-1100-4d82-8f94-dc5c3829702a",
+            "4ef36efa-e396-4378-9f5b-a8907fa45686",
             [
               {
-                name: "Population",
-                opacity: 0.5,
-                x: ["1", "2", "3"],
-                y: [157, 15, 10],
-                type: "bar",
-                xaxis: "x",
-                yaxis: "y2",
-              },
-              {
-                connectgaps: true,
-                line: { color: "red" },
-                name: "\u00b5i -\u00b5pop",
-                x: ["1", "2", "3"],
-                y: [0.6751592356687898, 0.8, 0.5],
-                type: "scatter",
+                coloraxis: "coloraxis",
+                name: "0",
+                x: [
+                  5.457, 10.231, 15.004999999999999, 19.779, 24.553,
+                  29.326999999999998, 34.101, 38.875, 43.649, 48.423,
+                ],
+                y: [1.25, 2.25, 3.25, 4.25, 5.25, 5.75],
+                z: [
+                  [1.0, 1.875, null, null, null, null, null, null, null, null],
+                  [
+                    2.2060000000000004,
+                    1.874736842105263,
+                    2.4385714285714286,
+                    3.1215625,
+                    3.57,
+                    2.89,
+                    3.2019999999999995,
+                    3.0,
+                    null,
+                    null,
+                  ],
+                  [
+                    null,
+                    1.665,
+                    2.862727272727273,
+                    3.0344444444444445,
+                    3.4450000000000003,
+                    4.294,
+                    4.67,
+                    4.0,
+                    3.0,
+                    10.0,
+                  ],
+                  [
+                    null,
+                    null,
+                    2.0,
+                    2.95,
+                    3.811,
+                    4.452,
+                    5.01,
+                    4.577500000000001,
+                    5.0,
+                    7.865,
+                  ],
+                  [
+                    null,
+                    null,
+                    null,
+                    5.0,
+                    null,
+                    3.3800000000000003,
+                    null,
+                    5.0,
+                    null,
+                    null,
+                  ],
+                  [null, null, null, null, null, 4.6, 6.7, null, null, 5.0],
+                ],
+                type: "heatmap",
                 xaxis: "x",
                 yaxis: "y",
-              },
-              {
-                mode: "lines",
-                name: "\u00b5i",
-                x: ["1", "3"],
-                y: [0.6758241758241759, 0.6758241758241759],
-                type: "scatter",
-                xaxis: "x",
-                yaxis: "y",
+                hovertemplate:
+                  "cont_2: %{x}<br>cont_1: %{y}<br>color: %{z}<extra></extra>",
               },
             ],
             {
@@ -473,21 +511,33 @@
               },
               xaxis: {
                 anchor: "y",
-                domain: [0.0, 0.94],
-                title: { text: "Predictor Bin" },
+                domain: [0.0, 1.0],
+                scaleanchor: "y",
+                constrain: "domain",
+                title: { text: "cont_2" },
               },
               yaxis: {
                 anchor: "x",
                 domain: [0.0, 1.0],
-                title: { text: "Response" },
+                autorange: "reversed",
+                constrain: "domain",
+                title: { text: "cont_1" },
               },
-              yaxis2: {
-                anchor: "x",
-                overlaying: "y",
-                side: "right",
-                title: { text: "Population" },
+              coloraxis: {
+                colorscale: [
+                  [0.0, "#0d0887"],
+                  [0.1111111111111111, "#46039f"],
+                  [0.2222222222222222, "#7201a8"],
+                  [0.3333333333333333, "#9c179e"],
+                  [0.4444444444444444, "#bd3786"],
+                  [0.5555555555555556, "#d8576b"],
+                  [0.6666666666666666, "#ed7953"],
+                  [0.7777777777777778, "#fb9f3a"],
+                  [0.8888888888888888, "#fdca26"],
+                  [1.0, "#f0f921"],
+                ],
               },
-              title: { text: "pclass" },
+              margin: { t: 60 },
             },
             { responsive: true }
           );
