@@ -11,9 +11,6 @@ import warnings
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-
-# import scipy.stats
-# import statsmodels.api as sm
 from dataset_loader import TestDatasets
 from plotly import express as px
 from plotly.subplots import make_subplots
@@ -243,7 +240,6 @@ def cont_correlation(df_continuous, cont_1, cont_2):
 
     res = stats.pearsonr(predictor_x, predictor_y)
     res_stat = res[0]
-    # print(res_stat)
     return res_stat
 
 
@@ -281,7 +277,7 @@ def cat_correlation(
     --------
     float in the range of [0,1]
     """
-
+    # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture08.html#/6/0/10
     x = df_categorical[cat_1]
     y = df_categorical[cat_2]
     corr_coeff = np.nan
@@ -338,6 +334,7 @@ def cat_cont_correlation_ratio(df_categorical, df_continuous, p_cat, p_cont):
     :param values: Numpy array of values
     :return: correlation
     """
+    # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture08.html#/6/0/10
     predictor_cat = df_categorical[p_cat]
     predictor_cont = df_continuous[p_cont]
 
@@ -358,11 +355,11 @@ def cat_cont_correlation_ratio(df_categorical, df_continuous, p_cat, p_cont):
         eta = 0.0
     else:
         eta = np.sqrt(numerator / denominator)
-    # print(eta)
     return eta
 
 
 def heatmap_maker(pt_df, heatmap_name):
+    # source : https://plotly.com/python/heatmaps/
     fig = px.imshow(pt_df, x=pt_df.columns, y=pt_df.index)
     fig.write_html(
         file=f"Output_Plots/heatmap_{heatmap_name}.html",
@@ -379,7 +376,6 @@ def mor_plots_brute_force_cont(df, predictor_1, predictor_2, response, df_data_t
     # source : https://linuxhint.com/python-numpy-histogram/
     # source : https://stackoverflow.com/questions/72688853/get-center-of-bins-histograms-python
     # source : https://stackoverflow.com/questions/34317149/pandas-groupby-with-bin-counts
-    print(predictor_1, predictor_2)
 
     amount = sum(df[response])
     mean_pop = amount / count
@@ -390,11 +386,6 @@ def mor_plots_brute_force_cont(df, predictor_1, predictor_2, response, df_data_t
     hist_pop_2, bin_edges_2 = np.histogram(df[predictor_2], bins=bin_count)
 
     # make this adjustment so that the lower bound is included
-    # bin_centers_1 = (bin_edges_1[:-1] + bin_edges_1[1:]) * 0.5
-    # bin_centers_2 = (bin_edges_2[:-1] + bin_edges_2[1:]) * 0.5
-    # print(hist_pop_1, bin_edges_1, bin_centers_1)
-    # print(hist_pop_2, bin_edges_2, bin_centers_2)
-
     for p in range(0, len(bin_edges_1) - 1):
         bin_edges_1[p] -= 0.00000001
         bin_edges_1[-1] += 0.00000001
@@ -410,41 +401,28 @@ def mor_plots_brute_force_cont(df, predictor_1, predictor_2, response, df_data_t
         ]
     )
     grouped_mean = grouped[response].mean()
-    # grouped_counts = grouped[response].count()
-    # print(grouped_mean)
 
     # Convert values to lists for easier graphing
     list_hist_pop_1 = list(hist_pop_1)
     list_hist_pop_2 = list(hist_pop_2)
-    # list_bin_centers = list(bin_centers)
     list_mean = list(grouped_mean)
-    # list_counts = list(grouped_counts)
-    # list_bin_edges = list(bin_edges)
-    # print(list_counts)
 
+    # rework values for easier graphing
     grouped_df = grouped_mean.to_frame()
-    # print(grouped_df.head(10))
     index_list = grouped_df.index.to_numpy()
-    # print(index_list)
     mid_i1 = []
     mid_i2 = []
     for i1, i2 in index_list:
-        # print(i1.mid, i2.mid)
         mid_i1.append(i1.mid)
         mid_i2.append(i2.mid)
-    # print(mid_i1)
-    # print(mid_i2)
-    # print(list_mean)
 
+    # plot work
     reworked_df = pd.DataFrame(
         list(zip(mid_i1, mid_i2, list_mean)), columns=["cont_1", "cont_2", "mean"]
     )
-    # print(reworked_df.head())
     ptable_mean = pd.pivot_table(
         reworked_df, index="cont_1", columns="cont_2", values="mean"
     )
-    # print(ptable_mean)
-
     fig1 = go.Figure(
         data=go.Heatmap(
             x=ptable_mean.columns, y=ptable_mean.index, z=ptable_mean.values
@@ -457,6 +435,7 @@ def mor_plots_brute_force_cont(df, predictor_1, predictor_2, response, df_data_t
         file=f"Output_Plots/heatmap_cont_cont_brute_force_{predictor_1}_{predictor_2}.html",
         include_plotlyjs="cdn",
     )
+    cont_path = f"heatmap_cont_cont_brute_force_{predictor_1}_{predictor_2}.html"
 
     # Mean Squared Diff
     # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
@@ -467,7 +446,6 @@ def mor_plots_brute_force_cont(df, predictor_1, predictor_2, response, df_data_t
         mean_diff = (b - mean_pop) ** 2
         mean_total += mean_diff
     msq = mean_total * (1 / bin_totals)
-    # print(msq)
 
     # Mean Squared Diff - Weighted
     # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
@@ -475,8 +453,6 @@ def mor_plots_brute_force_cont(df, predictor_1, predictor_2, response, df_data_t
     # source : https://stackoverflow.com/questions/37486938/remove-a-tuple-containing-nan-in-list-of-tuples-python
 
     total_pop = sum(list_hist_pop_1) + sum(list_hist_pop_2)
-    # print(list_hist_pop_1, list_hist_pop_2)
-    # print(total_pop)
 
     # set weights for each bin
     weights_list = []
@@ -484,7 +460,6 @@ def mor_plots_brute_force_cont(df, predictor_1, predictor_2, response, df_data_t
         for b in list_hist_pop_2:
             div_p = (p + b) / total_pop
             weights_list.append(div_p)
-    # print(weights_list)
 
     # make into list of tuples with bin means
     mean_weight_list = list(zip(list_mean, weights_list))
@@ -493,22 +468,19 @@ def mor_plots_brute_force_cont(df, predictor_1, predictor_2, response, df_data_t
         for t in mean_weight_list
         if not any(isinstance(n, float) and math.isnan(n) for n in t)
     ]
-    # print(clean_mn_list)
 
     # calculate weighted msq
     msqw = 0
     for (m, w) in clean_mn_list:
         mean_diff = w * ((m - mean_pop) ** 2) / bin_count
         msqw += mean_diff
-    # print(msqw)
 
-    return msq, msqw
+    return msq, msqw, cont_path
 
 
 def mor_plots_brute_force_cat(df, predictor_1, predictor_2, response, df_data_types):
     # store length of df in count variable to later calculate mean line
     count = len(df.index)
-    print(predictor_1, predictor_2)
 
     amount = sum(df[response])
     mean_pop = amount / count
@@ -518,38 +490,29 @@ def mor_plots_brute_force_cat(df, predictor_1, predictor_2, response, df_data_ty
     # get bin values, counts, and mean
     # source : https://towardsdatascience.com/11-examples-to-master-pandas-groupby-function-86e0de574f38
     grouped = df.groupby([df[predictor_1], df[predictor_2]])
-    # print(grouped)
     grouped_counts = grouped[response].count()
     grouped_mean = grouped[response].mean()
-    # print(grouped_mean)
 
     # convert to lists for easier graphing
-    # bin_values = grouped_mean.index.values.tolist()
     bin_counts = grouped_counts.to_list()
     bin_mean = grouped_mean.to_list()
 
-    # grouped_graph = df.groupby([df[predictor_1], df[predictor_2]])
+    # rework df for easier graphing
     grouped_df = grouped_mean.to_frame()
-    # print(grouped_df)
     index_list = grouped_df.index.to_numpy()
-    # print(index_list)
     list_i1 = []
     list_i2 = []
     for i1, i2 in index_list:
         list_i1.append(i1)
         list_i2.append(i2)
-    # print(len(list_i1))
-    # print(len(list_i2))
-    # print(len(bin_mean))
 
+    # plot work
     reworked_df = pd.DataFrame(
         list(zip(list_i1, list_i2, bin_mean)), columns=["cat_1", "cat_2", "mean"]
     )
-    # print(reworked_df.head())
     ptable_mean = pd.pivot_table(
         reworked_df, index="cat_1", columns="cat_2", values="mean"
     )
-    print(ptable_mean)
 
     fig1 = go.Figure(
         data=go.Heatmap(
@@ -563,6 +526,7 @@ def mor_plots_brute_force_cat(df, predictor_1, predictor_2, response, df_data_ty
         file=f"Output_Plots/heatmap_cat_cat_brute_force_{predictor_1}_{predictor_2}.html",
         include_plotlyjs="cdn",
     )
+    cat_path = f"heatmap_cat_cat_brute_force_{predictor_1}_{predictor_2}.html"
 
     # Mean Squared Diff
     # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
@@ -572,7 +536,6 @@ def mor_plots_brute_force_cat(df, predictor_1, predictor_2, response, df_data_ty
         mean_diff = (b - mean_pop) ** 2
         mean_total += mean_diff
     msq = mean_total * (1 / bin_totals)
-    # print(msq)
 
     # Mean Squared Diff - Weighted
     # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
@@ -594,9 +557,101 @@ def mor_plots_brute_force_cat(df, predictor_1, predictor_2, response, df_data_ty
     for (m, w) in mean_weight_list:
         mean_diff = w * ((m - mean_pop) ** 2)
         msqw += mean_diff
-    # print(msqw)
 
-    return msq, msqw
+    return msq, msqw, cat_path
+
+
+def mor_plots_brute_force_cc(df, p_cat, p_cont, response, df_data_types):
+    count = len(df.index)
+    # print(p_cat, p_cont)
+
+    amount = sum(df[response])
+    mean_pop = amount / count
+    bin_count_cat = len(np.sort(df[p_cat].unique()))
+    bin_count_cont = 10
+
+    hist_pop_cont, bin_edges_cont = np.histogram(df[p_cont], bins=bin_count_cont)
+
+    for p in range(0, len(bin_edges_cont) - 1):
+        bin_edges_cont[p] -= 0.00000001
+        bin_edges_cont[-1] += 0.00000001
+
+    # mean of each grouped
+    grouped = df.groupby([(df[p_cat]), pd.cut(df[p_cont], bins=bin_edges_cont)])
+    grouped_mean = grouped[response].mean()
+    grouped_counts = grouped[response].count()
+
+    # Convert values to lists for easier graphing
+    list_hist_pop_cont = list(hist_pop_cont)
+    bin_counts_cat = grouped_counts.to_list()
+    list_mean = list(grouped_mean)
+
+    grouped_df = grouped_mean.to_frame()
+    index_list = grouped_df.index.to_numpy()
+    list_i1 = []
+    mid_i2 = []
+    for i1, i2 in index_list:
+        list_i1.append(i1)
+        mid_i2.append(i2.mid)
+
+    # plot work
+    reworked_df = pd.DataFrame(
+        list(zip(list_i1, mid_i2, list_mean)), columns=["p_cat", "p_cont", "mean"]
+    )
+    ptable_mean = pd.pivot_table(
+        reworked_df, index="p_cat", columns="p_cont", values="mean"
+    )
+    fig1 = go.Figure(
+        data=go.Heatmap(
+            x=ptable_mean.columns, y=ptable_mean.index, z=ptable_mean.values
+        )
+    )
+    fig1.update_layout(title="Categorical/Continuous Brute Force Heatmap")
+    fig1.update_xaxes(title_text=p_cont)
+    fig1.update_yaxes(title_text=p_cat)
+    fig1.write_html(
+        file=f"Output_Plots/heatmap_cat_cont_brute_force_{p_cat}_{p_cont}.html",
+        include_plotlyjs="cdn",
+    )
+    cc_path = f"heatmap_cat_cont_brute_force_{p_cat}_{p_cont}.html"
+
+    # Mean Squared Diff
+    # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
+    list_mean_clean = [x for x in list_mean if str(x) != "nan"]
+    mean_total = 0
+    bin_totals = bin_count_cat * bin_count_cont
+    for b in list_mean_clean:
+        mean_diff = (b - mean_pop) ** 2
+        mean_total += mean_diff
+    msq = mean_total * (1 / bin_totals)
+
+    # Mean Squared Diff - Weighted
+    # source : https://stackoverflow.com/questions/21011777/how-can-i-remove-nan-from-list-python-numpy
+    # source : https://www.askpython.com/python/list/python-list-of-tuples
+    # source : https://stackoverflow.com/questions/37486938/remove-a-tuple-containing-nan-in-list-of-tuples-python
+    total_pop = sum(list_hist_pop_cont) + sum(bin_counts_cat)
+
+    # set weights for each bin
+    weights_list = []
+    for p in list_hist_pop_cont:
+        for b in bin_counts_cat:
+            div_p = (p + b) / total_pop
+            weights_list.append(div_p)
+
+    # make into list of tuples with bin means
+    mean_weight_list = list(zip(list_mean, weights_list))
+    clean_mn_list = [
+        t
+        for t in mean_weight_list
+        if not any(isinstance(n, float) and math.isnan(n) for n in t)
+    ]
+
+    msqw = 0
+    for (m, w) in clean_mn_list:
+        mean_diff = w * ((m - mean_pop) ** 2)
+        msqw += mean_diff
+
+    return msq, msqw, cc_path
 
 
 def main():
@@ -640,8 +695,8 @@ def main():
     # I found a nicer way to print the dictionary
     dict_print(df_data_types)
 
+    # generate initial plots
     for predictor in predictors:
-        # print_heading(predictor)
         DMR, wDMR, f_path = mor_plots(df, predictor, response, df_data_types)
         # print(DMR, wDMR)
 
@@ -652,8 +707,6 @@ def main():
             cont_predictors.append(predictor)
         all_continuous = df[df.columns.intersection(cont_predictors)]
         df_continuous = pd.DataFrame(all_continuous)
-    # print(cont_predictors)
-    # print(df_continuous)
 
     # define categorical predictors
     cat_predictors = []
@@ -662,8 +715,9 @@ def main():
             cat_predictors.append(predictor)
         all_categorical = df[df.columns.intersection(cat_predictors)]
         df_categorical = pd.DataFrame(all_categorical)
-    # print(cat_predictors)
-    # print(df_categorical)
+
+    # write main output file to put data in
+    f = open("Output_Plots/final_output.html", "w")
 
     print_heading("Continuous/Continuous")
     # create dataset for the printout
@@ -673,28 +727,40 @@ def main():
     for cont_1 in cont_predictors:
         DMR1, wDMR1, f_path_cont_1 = mor_plots(df, cont_1, response, df_data_types)
         for cont_2 in cont_predictors:
-            p_corr = cont_correlation(df_continuous, cont_1, cont_2)
-            DMR2, wDMR2, f_path_cont_2 = mor_plots(df, cont_1, response, df_data_types)
+            if cont_1 != cont_2:
+                p_corr = cont_correlation(df_continuous, cont_1, cont_2)
+                DMR2, wDMR2, f_path_cont_2 = mor_plots(
+                    df, cont_1, response, df_data_types
+                )
 
-            cont_1_link = f'<a href="{f_path_cont_1}">{cont_1}</a>'
-            cont_2_link = f'<a href="{f_path_cont_2}">{cont_2}</a>'
+                cont_1_link = f'<a href="{f_path_cont_1}">{cont_1}</a>'
+                cont_2_link = f'<a href="{f_path_cont_2}">{cont_2}</a>'
 
-            df_cont_cont.loc[len(df_cont_cont)] = [
-                cont_1,
-                cont_2,
-                p_corr,
-                cont_1_link,
-                cont_2_link,
-            ]
+                df_cont_cont.loc[len(df_cont_cont)] = [
+                    cont_1,
+                    cont_2,
+                    p_corr,
+                    cont_1_link,
+                    cont_2_link,
+                ]
     # print(df_cont_cont)
+    df_cont_cont_sort = df_cont_cont.sort_values(by=["pearson_corr"], ascending=False)
+    res_cont_cont = df_cont_cont_sort.to_html(
+        render_links=True,
+        escape=False,
+    )
+    f.write("Continuous/Continuous Table" + "\n")
+    f.write(res_cont_cont + "\n")
 
-    # pivot table for matrix graph
+    # matrix plot
     # source : https://www.geeksforgeeks.org/python-pandas-pivot_table/
-    df_cont_cont = df_cont_cont.drop(columns=["cont_1_url", "cont_2_url"])
-    ptable_cont = pd.pivot_table(df_cont_cont, index="cont_1", columns="cont_2")
-    # print(ptable_cont)
+    df_cont_cont_m = df_cont_cont.drop(columns=["cont_1_url", "cont_2_url"])
+    ptable_cont = pd.pivot_table(df_cont_cont_m, index="cont_1", columns="cont_2")
     heatmap_name = "cont_cont_matrix"
     cont_path = heatmap_maker(ptable_cont, heatmap_name)
+    cont_link = f'<a href="{cont_path}">Cont_Cont_Matrix</a>'
+    f.write("Continuous/Continuous Correlations" + "\n")
+    f.write(cont_link + "\n")
 
     print_heading("Categorical/Categorical")
     # create final dataset for the printout
@@ -705,26 +771,41 @@ def main():
     for cat_1 in cat_predictors:
         DMR1, wDMR1, f_path_cat_1 = mor_plots(df, cat_1, response, df_data_types)
         for cat_2 in cat_predictors:
-            cramer_corr = cat_correlation(
-                df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=False
-            )
-            DMR1, wDMR1, f_path_cat_2 = mor_plots(df, cat_1, response, df_data_types)
-            cat_1c_link = f'<a href="{f_path_cat_1}">{cat_1}</a>'
-            cat_2c_link = f'<a href="{f_path_cat_2}">{cat_2}</a>'
-            df_cat_cat_cramer.loc[len(df_cat_cat_cramer)] = [
-                cat_1,
-                cat_2,
-                cramer_corr,
-                cat_1c_link,
-                cat_2c_link,
-            ]
+            if cat_1 != cat_2:
+                cramer_corr = cat_correlation(
+                    df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=False
+                )
+                DMR1, wDMR1, f_path_cat_2 = mor_plots(
+                    df, cat_1, response, df_data_types
+                )
+                cat_1c_link = f'<a href="{f_path_cat_1}">{cat_1}</a>'
+                cat_2c_link = f'<a href="{f_path_cat_2}">{cat_2}</a>'
+                df_cat_cat_cramer.loc[len(df_cat_cat_cramer)] = [
+                    cat_1,
+                    cat_2,
+                    cramer_corr,
+                    cat_1c_link,
+                    cat_2c_link,
+                ]
     # print(df_cat_cat_cramer)
+    df_cat_cat_cramer_sort = df_cat_cat_cramer.sort_values(
+        by=["cramer_corr"], ascending=False
+    )
+    res_cat_cat_cramer = df_cat_cat_cramer_sort.to_html(
+        render_links=True,
+        escape=False,
+    )
+    f.write("Categorical/Categorical Cramer Table" + "\n")
+    f.write(res_cat_cat_cramer + "\n")
 
-    df_cat_cat_cramer = df_cat_cat_cramer.drop(columns=["cat_1_url", "cat_2_url"])
-    ptable_cramer = pd.pivot_table(df_cat_cat_cramer, index="cat_1", columns="cat_2")
-    # print(ptable_cramer)
+    # matrix plot
+    df_cat_cat_cramer_m = df_cat_cat_cramer.drop(columns=["cat_1_url", "cat_2_url"])
+    ptable_cramer = pd.pivot_table(df_cat_cat_cramer_m, index="cat_1", columns="cat_2")
     heatmap_name = "cat_cat_cramer_matrix"
     cramer_path = heatmap_maker(ptable_cramer, heatmap_name)
+    cramer_link = f'<a href="{cramer_path}">Cat_Cat_Cramer_Matrix</a>'
+    f.write("Categorical/Categorical Cramer Correlations" + "\n")
+    f.write(cramer_link + "\n")
 
     # create final dataset for the printout
     df_cat_cat_tschuprow = pd.DataFrame(
@@ -734,31 +815,46 @@ def main():
     for cat_1 in cat_predictors:
         DMR1, wDMR1, f_path_cat_1 = mor_plots(df, cat_1, response, df_data_types)
         for cat_2 in cat_predictors:
-            tschuprow_corr = cat_correlation(
-                df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=True
-            )
-            DMR1, wDMR1, f_path_cat_2 = mor_plots(df, cat_2, response, df_data_types)
-            cat_1t_link = f'<a href="{f_path_cat_1}">{cat_1}</a>'
-            cat_2t_link = f'<a href="{f_path_cat_2}">{cat_2}</a>'
-            df_cat_cat_tschuprow.loc[len(df_cat_cat_tschuprow)] = [
-                cat_1,
-                cat_2,
-                tschuprow_corr,
-                cat_1t_link,
-                cat_2t_link,
-            ]
-    # print(df_cat_cat_tschuprow)
-
-    df_cat_cat_tschuprow = df_cat_cat_tschuprow.drop(columns=["cat_1_url", "cat_2_url"])
-    ptable_tschuprow = pd.pivot_table(
-        df_cat_cat_tschuprow, index="cat_1", columns="cat_2"
+            if cat_1 != cat_2:
+                tschuprow_corr = cat_correlation(
+                    df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=True
+                )
+                DMR1, wDMR1, f_path_cat_2 = mor_plots(
+                    df, cat_2, response, df_data_types
+                )
+                cat_1t_link = f'<a href="{f_path_cat_1}">{cat_1}</a>'
+                cat_2t_link = f'<a href="{f_path_cat_2}">{cat_2}</a>'
+                df_cat_cat_tschuprow.loc[len(df_cat_cat_tschuprow)] = [
+                    cat_1,
+                    cat_2,
+                    tschuprow_corr,
+                    cat_1t_link,
+                    cat_2t_link,
+                ]
+    df_cat_cat_tschuprow_sort = df_cat_cat_tschuprow.sort_values(
+        by=["tschuprow_corr"], ascending=False
     )
-    # print(ptable_tschuprow)
+    res_cat_cat_tschuprow = df_cat_cat_tschuprow_sort.to_html(
+        render_links=True,
+        escape=False,
+    )
+    f.write("Categorical/Categorical Tschuprow Table")
+    f.write(res_cat_cat_tschuprow)
+
+    # matrix graph
+    df_cat_cat_tschuprow_m = df_cat_cat_tschuprow.drop(
+        columns=["cat_1_url", "cat_2_url"]
+    )
+    ptable_tschuprow = pd.pivot_table(
+        df_cat_cat_tschuprow_m, index="cat_1", columns="cat_2"
+    )
     heatmap_name = "cat_cat_tschuprow_matrix"
     tschuprow_path = heatmap_maker(ptable_tschuprow, heatmap_name)
+    tschuprow_link = f'<a href="{tschuprow_path}">Cat_Cat_Tschuprow_Matrix</a>'
+    f.write("Categorical/Categorical Tschuprow Correlations" + "\n")
+    f.write(tschuprow_link + "\n")
 
     print_heading("Categorical/Continuous")
-
     df_cat_cont = pd.DataFrame(
         columns=["p_cat", "p_cont", "corr", "cat_url", "cont_url"]
     )
@@ -778,24 +874,185 @@ def main():
                 cat_link,
                 cont_link,
             ]
-    # print(df_cat_cont)
-    df_cat_cont = df_cat_cont.drop(columns=["cat_url", "cont_url"])
-    ptable_cc = pd.pivot_table(df_cat_cont, index="p_cat", columns="p_cont")
-    # print(ptable_cc)
+    df_cat_cont_sort = df_cat_cont.sort_values(by=["corr"], ascending=False)
+    res_cat_cont = df_cat_cont_sort.to_html(
+        render_links=True,
+        escape=False,
+    )
+    f.write("Categorical/Continuous Table" + "\n")
+    f.write(res_cat_cont + "\n")
+
+    # matrix graph
+    df_cat_cont_m = df_cat_cont.drop(columns=["cat_url", "cont_url"])
+    ptable_cc = pd.pivot_table(df_cat_cont_m, index="p_cat", columns="p_cont")
     heatmap_name = "cat_cont_matrix"
-    cat_path = heatmap_maker(ptable_cc, heatmap_name)
+    cc_path = heatmap_maker(ptable_cc, heatmap_name)
+    cc_link = f'<a href="{cc_path}">Cat_Cont_Matrix</a>'
+    f.write("Categorical/Continuous Correlations" + "\n")
+    f.write(cc_link + "\n")
 
-    print(cont_path, cramer_path, tschuprow_path, cat_path)
-
+    # cont cont brute force
+    df_cont_cont_bf = pd.DataFrame(
+        columns=[
+            "cont_1",
+            "cont_2",
+            "diff_mean_resp_ranking",
+            "diff_mean_resp_weighted_ranking",
+            "pearson",
+            "abs_pearson",
+            "link",
+        ]
+    )
+    # fill data
     for cont_1 in cont_predictors:
+        DMRc1, wDMRc1, f_path_cont_1 = mor_plots(df, cont_1, response, df_data_types)
         for cont_2 in cont_predictors:
             if cont_1 != cont_2:
-                mor_plots_brute_force_cont(df, cont_1, cont_2, response, df_data_types)
+                DMRc2, wDMRc2, f_path_cont_2 = mor_plots(
+                    df, cont_2, response, df_data_types
+                )
+                DMR, wDMR, plot_path_cont = mor_plots_brute_force_cont(
+                    df, cont_1, cont_2, response, df_data_types
+                )
+                p_corr = cont_correlation(df_continuous, cont_1, cont_2)
+                abs_p_corr = abs(p_corr)
+                cont_1_link = f'<a href="{f_path_cont_1}">{cont_1}</a>'
+                cont_2_link = f'<a href="{f_path_cont_2}">{cont_2}</a>'
+                plot_cont_link = f'<a href="{plot_path_cont}">Plot</a>'
 
+                # append each predictor's values to a new row
+                df_cont_cont_bf.loc[len(df_cont_cont_bf)] = [
+                    cont_1_link,
+                    cont_2_link,
+                    DMR,
+                    wDMR,
+                    p_corr,
+                    abs_p_corr,
+                    plot_cont_link,
+                ]
+    clean_df_cont_cont_bf = df_cont_cont_bf.sort_values(
+        by=["diff_mean_resp_weighted_ranking"], ascending=False
+    )
+    # writing to html
+    res_cont_cont_bf = clean_df_cont_cont_bf.to_html(
+        render_links=True,
+        escape=False,
+    )
+    f.write("Continuous/Continuous Brute Force" + "\n")
+    f.write(res_cont_cont_bf + "\n")
+
+    # cat/cat brute force
+    df_cat_cat_bf = pd.DataFrame(
+        columns=[
+            "cat_1",
+            "cat_2",
+            "diff_mean_resp_ranking",
+            "diff_mean_resp_weighted_ranking",
+            "cramer",
+            "tschiprow",
+            "abs_cramer",
+            "abs_tschiprow",
+            "link",
+        ]
+    )
+    # fill data
     for cat_1 in cat_predictors:
+        DMRc1, wDMRc1, f_path_cat_1 = mor_plots(df, cat_1, response, df_data_types)
         for cat_2 in cat_predictors:
             if cat_1 != cat_2:
-                mor_plots_brute_force_cat(df, cat_1, cat_2, response, df_data_types)
+                DMRc2, wDMRc2, f_path_cat_2 = mor_plots(
+                    df, cat_2, response, df_data_types
+                )
+                DMR, wDMR, plot_path_cat = mor_plots_brute_force_cat(
+                    df, cat_1, cat_2, response, df_data_types
+                )
+                cramer_corr = cat_correlation(
+                    df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=False
+                )
+                tschuprow_corr = cat_correlation(
+                    df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=True
+                )
+                abs_cramer = abs(cramer_corr)
+                abs_tschprow = abs(tschuprow_corr)
+                cat_1_link = f'<a href="{f_path_cat_1}">{cat_1}</a>'
+                cat_2_link = f'<a href="{f_path_cat_2}">{cat_2}</a>'
+                plot_cat_link = f'<a href="{plot_path_cat}">Plot</a>'
+
+                # append each predictor's values to a new row
+                df_cat_cat_bf.loc[len(df_cat_cat_bf)] = [
+                    cat_1_link,
+                    cat_2_link,
+                    DMR,
+                    wDMR,
+                    cramer_corr,
+                    tschuprow_corr,
+                    abs_cramer,
+                    abs_tschprow,
+                    plot_cat_link,
+                ]
+    # write to html
+    clean_df_cat_cat_bf = df_cat_cat_bf.sort_values(
+        by=["diff_mean_resp_weighted_ranking"], ascending=False
+    )
+    res_cat_cat_bf = clean_df_cat_cat_bf.to_html(
+        render_links=True,
+        escape=False,
+    )
+    f.write("Categorical/Categorical Brute Force" + "\n")
+    f.write(res_cat_cat_bf + "\n")
+
+    # cat cont brute force
+    df_cat_cont_bf = pd.DataFrame(
+        columns=[
+            "cat",
+            "cont",
+            "diff_mean_resp_ranking",
+            "diff_mean_resp_weighted_ranking",
+            "corr_ratio",
+            "abs_corr_ratio",
+            "link",
+        ]
+    )
+    # fill data
+    for p_cat in cat_predictors:
+        DMRc1, wDMRc1, f_path_p_cat = mor_plots(df, p_cat, response, df_data_types)
+        for p_cont in cont_predictors:
+            DMRc2, wDMRc2, f_path_p_cont = mor_plots(
+                df, p_cont, response, df_data_types
+            )
+            DMR, wDMR, plot_path_cc = mor_plots_brute_force_cc(
+                df, p_cat, p_cont, response, df_data_types
+            )
+            corr = cat_cont_correlation_ratio(
+                df_categorical, df_continuous, p_cat, p_cont
+            )
+            abs_corr = abs(corr)
+            cc_1_link = f'<a href="{f_path_p_cat}">{p_cat}</a>'
+            cc_2_link = f'<a href="{f_path_p_cont}">{p_cont}</a>'
+            plot_cc_link = f'<a href="{plot_path_cc}">Plot</a>'
+
+            # append each predictor's values to a new row
+            df_cat_cont_bf.loc[len(df_cat_cont_bf)] = [
+                cc_1_link,
+                cc_2_link,
+                DMR,
+                wDMR,
+                corr,
+                abs_corr,
+                plot_cc_link,
+            ]
+    # write to html
+    clean_df_cat_cont_bf = df_cat_cont_bf.sort_values(
+        by=["diff_mean_resp_weighted_ranking"], ascending=False
+    )
+    res_cat_cont_bf = clean_df_cat_cont_bf.to_html(
+        render_links=True,
+        escape=False,
+    )
+    f.write("Categorical/Continuous Brute Force" + "\n")
+    f.write(res_cat_cont_bf + "\n")
+
+    f.close()
 
     return 0
 
