@@ -49,7 +49,7 @@ LIMIT 10;
 
 -- rolling average for teams
 
--- Last 100 Days Rolling Average ------
+-- Last 100 Days Rolling Batting Average ------
 -- Home team
 -- Get all dates
 CREATE OR REPLACE TABLE z_home_team_all_game_dates AS
@@ -289,7 +289,6 @@ SELECT team_id
 FROM z_away_team_last_100_bbk_totals
 ORDER BY team_id, local_date, game_id
 ;
-
 DROP TABLE z_away_bbk_dates, z_away_team_bbk_last_100_dates, z_away_team_last_100_bbk_totals;
 -- check last 100 avg
 SELECT game_id
@@ -298,7 +297,6 @@ LIMIT 100
 ;
 
 -- --------------------------------------------------------------------------------------
-
 -- HR/H – Home runs per hit: home runs divided by total hits
 -- home team
 -- Get all dates
@@ -529,16 +527,263 @@ FROM z_away_team_paso_avg
 LIMIT 100
 ;
 
+-- ------------------------------------------------------------------------------
+-- GO/AO – Ground Out to Air Out ratio, aka Ground ball fly ball ratio:
+-- ground balls allowed divided by fly balls allowed
+-- home team
+-- Get all dates
+CREATE OR REPLACE TABLE z_home_goao_dates AS
+SELECT b.team_id
+    , b.game_id
+    , g.local_date
+    , b.Ground_Out
+    , b.Fly_Out
+FROM team_batting_counts b
+    JOIN game g
+        ON b.game_id = g.game_id
+WHERE b.homeTeam = 1
+;
+-- Manage Primary Keys and Add Indexes
+ALTER TABLE z_home_goao_dates ADD PRIMARY KEY (team_id, game_id), ADD INDEX team_index(team_id);
+
+CREATE OR REPLACE TABLE z_home_team_goao_last_100_dates AS
+SELECT a.team_id
+    , a.local_date
+    , a.game_id
+    , COALESCE(d.Ground_Out, 0) AS joined_go
+    , COALESCE(d.Fly_Out, 0) AS joined_fo
+FROM z_home_goao_dates a
+    LEFT JOIN z_home_goao_dates d
+        ON d.team_id = a.team_id
+            AND d.local_date BETWEEN DATE_ADD(a.local_date, INTERVAL - 101 DAY)
+            AND DATE_ADD(a.local_date, INTERVAL - 1 DAY)
+;
+CREATE OR REPLACE TABLE z_home_team_last_100_goao_totals AS
+SELECT team_id
+    , local_date
+    , game_id
+    , SUM(joined_go) AS goSum
+    , SUM(joined_fo) AS foSum
+FROM z_home_team_goao_last_100_dates
+GROUP BY team_id, local_date, game_id
+;
+-- Create final avg for each 100 day span for each team for each game
+-- I used a case when and coalesce to solve the divide by 0 error
+CREATE OR REPLACE TABLE z_home_team_goao_avg AS
+SELECT team_id
+    , local_date
+    , game_id
+    , (CASE WHEN foSum = 0 THEN 0 ELSE COALESCE(goSum / foSum, 0) END)
+    AS goao_rolling_avg
+FROM z_home_team_last_100_goao_totals
+ORDER BY team_id, local_date, game_id
+;
+DROP TABLE z_home_goao_dates, z_home_team_goao_last_100_dates, z_home_team_last_100_goao_totals;
+-- check last 100 avg
+SELECT game_id, team_id, local_date, goao_rolling_avg
+FROM z_home_team_goao_avg
+LIMIT 100
+;
+
+-- away team
+-- Get all dates
+CREATE OR REPLACE TABLE z_away_goao_dates AS
+SELECT b.team_id
+    , b.game_id
+    , g.local_date
+    , b.Ground_Out
+    , b.Fly_Out
+FROM team_batting_counts b
+    JOIN game g
+        ON b.game_id = g.game_id
+WHERE b.awayTeam = 1
+;
+-- Manage Primary Keys and Add Indexes
+ALTER TABLE z_away_goao_dates ADD PRIMARY KEY (team_id, game_id), ADD INDEX team_index(team_id);
+
+CREATE OR REPLACE TABLE z_away_team_goao_last_100_dates AS
+SELECT a.team_id
+    , a.local_date
+    , a.game_id
+    , COALESCE(d.Ground_Out, 0) AS joined_go
+    , COALESCE(d.Fly_Out, 0) AS joined_fo
+FROM z_away_goao_dates a
+    LEFT JOIN z_away_goao_dates d
+        ON d.team_id = a.team_id
+            AND d.local_date BETWEEN DATE_ADD(a.local_date, INTERVAL - 101 DAY)
+            AND DATE_ADD(a.local_date, INTERVAL - 1 DAY)
+;
+CREATE OR REPLACE TABLE z_away_team_last_100_goao_totals AS
+SELECT team_id
+    , local_date
+    , game_id
+    , SUM(joined_go) AS goSum
+    , SUM(joined_fo) AS foSum
+FROM z_away_team_goao_last_100_dates
+GROUP BY team_id, local_date, game_id
+;
+-- Create final avg for each 100 day span for each team for each game
+-- I used a case when and coalesce to solve the divide by 0 error
+CREATE OR REPLACE TABLE z_away_team_goao_avg AS
+SELECT team_id
+    , local_date
+    , game_id
+    , (CASE WHEN foSum = 0 THEN 0 ELSE COALESCE(goSum / foSum, 0) END)
+    AS goao_rolling_avg
+FROM z_away_team_last_100_goao_totals
+ORDER BY team_id, local_date, game_id
+;
+DROP TABLE z_away_goao_dates, z_away_team_goao_last_100_dates, z_away_team_last_100_goao_totals;
+-- check last 100 avg
+SELECT game_id, team_id, local_date, goao_rolling_avg
+FROM z_away_team_goao_avg
+LIMIT 100
+;
+-- ------------------------------------------------------------------------------
 -- OBP – On-base percentage: times reached base (H + BB + HBP)
 -- divided by at bats plus walks plus hit by pitch plus sacrifice flies (AB + BB + HBP + SF)
+-- home team
+-- Get all dates
+CREATE OR REPLACE TABLE z_home_obp_dates AS
+SELECT b.team_id
+    , b.game_id
+    , g.local_date
+    , b.Hit
+    , b.Walk
+    , b.Hit_By_Pitch
+    , b.atBat
+    , b.Sac_Fly
+FROM team_batting_counts b
+    JOIN game g
+        ON b.game_id = g.game_id
+WHERE b.homeTeam = 1
+;
+-- Manage Primary Keys and Add Indexes
+ALTER TABLE z_home_obp_dates ADD PRIMARY KEY (team_id, game_id), ADD INDEX team_index(team_id);
 
--- GO/AO – Ground ball fly ball ratio: number of ground ball outs divided by number of fly ball outs
+-- Get the last 100 games for each date and team with the needed stats
+CREATE OR REPLACE TABLE z_home_team_obp_last_100_dates AS
+SELECT a.team_id
+    , a.local_date
+    , a.game_id
+    , COALESCE(d.Hit, 0) AS joined_hit
+    , COALESCE(d.Walk, 0) AS joined_walk
+    , COALESCE(d.Hit_By_Pitch, 0) AS joined_hbp
+    , COALESCE(d.atBat, 0) AS joined_atBat
+    , COALESCE(d.Sac_Fly, 0) AS joined_sc
+FROM z_home_obp_dates a
+    LEFT JOIN z_home_obp_dates d
+        ON d.team_id = a.team_id
+            AND d.local_date BETWEEN DATE_ADD(a.local_date, INTERVAL - 101 DAY)
+            AND DATE_ADD(a.local_date, INTERVAL - 1 DAY)
+;
+-- getting at bat and hit sums for each 100 day span
+CREATE OR REPLACE TABLE z_home_team_last_100_obp_totals AS
+SELECT team_id
+    , local_date
+    , game_id
+    , SUM(joined_hit) AS hitSum
+    , SUM(joined_walk) AS walkSum
+    , SUM(joined_hbp) AS hbpSum
+    , SUM(joined_atBat) AS atBatSum
+    , SUM(joined_sc) AS scSum
+FROM z_home_team_obp_last_100_dates
+GROUP BY team_id, local_date, game_id
+;
+-- Create final avg for each 100 day span for each team for each game
+-- I used a case when and coalesce to solve the divide by 0 error
+CREATE OR REPLACE TABLE z_home_team_obp_avg AS
+SELECT team_id
+    , local_date
+    , game_id
+    , (CASE WHEN (walkSum + hbpSum + atBatSum + scSum) = 0
+        THEN 0 ELSE COALESCE((hitSum + walkSum + hbpSum)/ (walkSum + hbpSum + atBatSum + scSum), 0) END)
+    AS obp_rolling_avg
+FROM z_home_team_last_100_obp_totals
+ORDER BY team_id, local_date, game_id
+;
+DROP TABLE z_home_obp_dates, z_home_team_obp_last_100_dates, z_home_team_last_100_obp_totals;
+-- check last 100 avg
+SELECT team_id, local_date, game_id, obp_rolling_avg
+FROM z_home_team_obp_avg
+LIMIT 100
+;
+-- away team
+-- Get all dates
+CREATE OR REPLACE TABLE z_away_obp_dates AS
+SELECT b.team_id
+    , b.game_id
+    , g.local_date
+    , b.Hit
+    , b.Walk
+    , b.Hit_By_Pitch
+    , b.atBat
+    , b.Sac_Fly
+FROM team_batting_counts b
+    JOIN game g
+        ON b.game_id = g.game_id
+WHERE b.awayTeam = 1
+;
+-- Manage Primary Keys and Add Indexes
+ALTER TABLE z_away_obp_dates ADD PRIMARY KEY (team_id, game_id), ADD INDEX team_index(team_id);
 
--- SB% – Stolen base percentage: the percentage of bases stolen successfully. (SB) divided by (SBA) (stolen bases attempted).
-
+-- Get the last 100 games for each date and team with the needed stats
+CREATE OR REPLACE TABLE z_away_team_obp_last_100_dates AS
+SELECT a.team_id
+    , a.local_date
+    , a.game_id
+    , COALESCE(d.Hit, 0) AS joined_hit
+    , COALESCE(d.Walk, 0) AS joined_walk
+    , COALESCE(d.Hit_By_Pitch, 0) AS joined_hbp
+    , COALESCE(d.atBat, 0) AS joined_atBat
+    , COALESCE(d.Sac_Fly, 0) AS joined_sc
+FROM z_away_obp_dates a
+    LEFT JOIN z_away_obp_dates d
+        ON d.team_id = a.team_id
+            AND d.local_date BETWEEN DATE_ADD(a.local_date, INTERVAL - 101 DAY)
+            AND DATE_ADD(a.local_date, INTERVAL - 1 DAY)
+;
+-- getting at bat and hit sums for each 100 day span
+CREATE OR REPLACE TABLE z_away_team_last_100_obp_totals AS
+SELECT team_id
+    , local_date
+    , game_id
+    , SUM(joined_hit) AS hitSum
+    , SUM(joined_walk) AS walkSum
+    , SUM(joined_hbp) AS hbpSum
+    , SUM(joined_atBat) AS atBatSum
+    , SUM(joined_sc) AS scSum
+FROM z_away_team_obp_last_100_dates
+GROUP BY team_id, local_date, game_id
+;
+-- Create final avg for each 100 day span for each team for each game
+-- I used a case when and coalesce to solve the divide by 0 error
+CREATE OR REPLACE TABLE z_away_team_obp_avg AS
+SELECT team_id
+    , local_date
+    , game_id
+    , (CASE WHEN (walkSum + hbpSum + atBatSum + scSum) = 0
+        THEN 0 ELSE COALESCE((hitSum + walkSum + hbpSum)/ (walkSum + hbpSum + atBatSum + scSum), 0) END)
+    AS obp_rolling_avg
+FROM z_away_team_last_100_obp_totals
+ORDER BY team_id, local_date, game_id
+;
+DROP TABLE z_away_obp_dates, z_away_team_obp_last_100_dates, z_away_team_last_100_obp_totals;
+-- check last 100 avg
+SELECT team_id, local_date, game_id, obp_rolling_avg
+FROM z_away_team_obp_avg
+LIMIT 100
+;
+-- ------------------------------------------------------------------------------
 -- Pitching
 -- BB/9 – Bases on balls per 9 innings pitched: base on balls multiplied by nine, divided by innings pitched
 
+-- SELECT * FROM team_batting_counts LIMIT 10;
+
 -- H/9 (or HA/9) – Hits allowed per 9 innings pitched: hits allowed times nine divided by innings pitched (also known as H/9IP)
+
+-- HR/9 (or HRA/9) – Home runs per nine innings: home runs allowed times nine divided by innings pitched (also known as HR/9IP)
+
+-- K/9 (or SO/9) – Strikeouts per 9 innings pitched: strikeouts times nine divided by innings pitched
 
 -- WHIP – Walks and hits per inning pitched: average number of walks and hits allowed by the pitcher per inning
