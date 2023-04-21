@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Homework 5
+# PLEASE RUN hw_05_prep.sql before this code
 
 import math
 import os
@@ -11,11 +12,16 @@ import warnings
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import sqlalchemy
+import statsmodels.api as sm
 from plotly import express as px
 from plotly.subplots import make_subplots
 from scipy import stats
-
-# dataset_loader.py from class / Julien's slides
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 
 def print_heading(title):
@@ -231,6 +237,166 @@ def mor_plots(df, predictor, response, df_data_types):
         # output path for link
         f_path = f"mean_cat_{predictor}.html"
         return msq, msqw, f_path
+
+
+def initial_plots(df, predictor, response, df_data_types):
+    if df_data_types[response] == "boolean":
+        if df_data_types[predictor] == "continuous":
+            # violin plot
+            # source : https://plotly.com/python/violin/
+            fig_1 = px.violin(df, x=response, color=response, y=predictor)
+            fig_1.write_html(
+                file=f"Output_Plots/violin_bool_response_cont_predictor_{predictor}.html",
+                include_plotlyjs="cdn",
+            )
+            # output path for link
+            if_path = f"violin_bool_response_cont_predictor_{predictor}.html"
+
+            # distribution plot
+            # source : https://plotly.com/python/distplot/
+            fig_2 = px.histogram(df, x=response, color=response, y=predictor)
+            fig_2.write_html(
+                file=f"Output_Plots/dist_bool_response_cont_predictor_{predictor}.html",
+                include_plotlyjs="cdn",
+            )
+            return if_path
+
+        else:
+            fig_3 = px.density_heatmap(df, x=predictor, y=response)
+            # source : https://plotly.com/python/2D-Histogram/
+            fig_3.write_html(
+                file=f"Output_Plots/heatmap_bool_response_cat_predictor_{predictor}.html",
+                include_plotlyjs="cdn",
+            )
+            # output path for link
+            if_path = f"heatmap_bool_response_cat_predictor_{predictor}.html"
+            return if_path
+    else:
+        if df_data_types[predictor] == "categorical":
+            # violin plot
+            fig_4 = px.violin(df, x=response, color=response, y=predictor)
+            fig_4.write_html(
+                file=f"Output_Plots/violin_cont_response_cat_predictor_{predictor}.html",
+                include_plotlyjs="cdn",
+            )
+            # distribution plot
+            fig_5 = px.histogram(df, x=response, color=response, y=predictor)
+            fig_5.write_html(
+                file=f"Output_Plots/dist_cont_response_cat_predictor_{predictor}.html",
+                include_plotlyjs="cdn",
+            )
+            # output path for link
+            if_path = f"violin_cont_response_cat_predictor_{predictor}.html"
+            return if_path
+        else:
+            # scatter plot
+            # https://plotly.com/python/line-and-scatter/
+            fig_6 = px.scatter(df, predictor, response, trendline="ols")
+            fig_6.write_html(
+                file=f"Output_Plots/scatter_cont_response_cont_predictor_{predictor}.html",
+                include_plotlyjs="cdn",
+            )
+            # output path for link
+            if_path = f"scatter_cont_response_cont_predictor_{predictor}.html"
+            return if_path
+
+
+def pt_scores(df, predictor, response, df_data_types):
+    X = df[predictor]
+    Y = df[response]
+
+    if (
+        df_data_types[response] == "continuous"
+        and df_data_types[predictor] == "continuous"
+    ):
+        # linear regression model
+        # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture07.html#/5/1
+        linear_pred = sm.add_constant(X)
+        linear_regression_model = sm.OLS(Y, linear_pred)
+        linear_regression_model_fitted = linear_regression_model.fit()
+        print(f"Variable: {predictor}")
+        print(linear_regression_model_fitted.summary())
+
+        # p value and t score
+        t_value = round(linear_regression_model_fitted.tvalues[1], 6)
+        p_value = "{:.6e}".format(linear_regression_model_fitted.pvalues[1])
+        print(predictor, "- Scores")
+        print("t_value", t_value)
+        print("p_value", p_value)
+
+        fig_7 = px.scatter(x=X, y=Y, trendline="ols")
+        fig_7.write_html(
+            file=f"Output_Plots/linear_reg_values_{predictor}.html",
+            include_plotlyjs="cdn",
+        )
+        return t_value, p_value
+    elif (
+        df_data_types[response] == "boolean"
+        and df_data_types[predictor] == "continuous"
+    ):
+        # logistic regression model
+        # source : https://www.geeksforgeeks.org/logistic-regression-using-statsmodels/
+        log_pred = sm.add_constant(X)
+        logistic_regression_model = sm.Logit(Y, log_pred)
+        logistic_regression_model_fitted = logistic_regression_model.fit()
+        print(f"Variable: {predictor}")
+        print(logistic_regression_model_fitted.summary())
+
+        t_value = round(logistic_regression_model_fitted.tvalues[1], 6)
+        p_value = "{:.6e}".format(logistic_regression_model_fitted.pvalues[1])
+        print(predictor, "- Scores")
+        print("t_value", t_value)
+        print("p_value", p_value)
+
+        fig_8 = px.scatter(x=X, y=Y, trendline="ols")
+        fig_8.write_html(
+            file=f"Output_Plots/logistic_reg_values_{predictor}.html",
+            include_plotlyjs="cdn",
+        )
+        return t_value, p_value
+    else:
+        t_value = "NA"
+        p_value = "NA"
+        return t_value, p_value
+
+
+def random_forest_features(df, df_continuous, response, df_data_types):
+    X_orig = df_continuous.values
+    Y_orig = df[response].values
+
+    # Random Forest
+    # print_heading("Random Feature Importance")
+    if df_data_types[response] == "boolean":
+        # source : https://www.digitalocean.com/community/tutorials/standardscaler-function-in-python
+        # source : https://mljar.com/blog/feature-importance-in-random-forest/
+        sc = StandardScaler()
+        X_scale = sc.fit_transform(X_orig)
+        rfc = RandomForestClassifier(random_state=1234)
+        rfc.fit(X_scale, np.ravel(Y_orig))
+        # This .ravel() was suggested by PyCharm when I got an error message
+        importances = rfc.feature_importances_
+        importances_list = list(importances)
+        columns_list = df_continuous.columns.to_list()
+
+        # output columns and feature importance as a dictionary
+        col_imp_dict = dict(zip(columns_list, importances_list))
+        print(col_imp_dict)
+        return col_imp_dict
+
+    else:
+        # response is continuous, use regressor
+        # source : https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html
+        rfr = RandomForestRegressor(random_state=1234)
+        rfr.fit(X_orig, np.ravel(Y_orig))
+        # This .ravel() was suggested by PyCharm when I got an error message
+        importances = rfr.feature_importances_
+        importances_list = list(importances)
+        columns_list = df_continuous.columns.to_list()
+
+        # output columns and feature importance as a dictionary
+        col_imp_dict = dict(zip(columns_list, importances_list))
+        print(col_imp_dict)
+        return col_imp_dict
 
 
 def cont_correlation(df_continuous, cont_1, cont_2):
@@ -653,6 +819,75 @@ def mor_plots_brute_force_cc(df, p_cat, p_cont, response, df_data_types):
     return msq, msqw, cc_path
 
 
+def models(df):
+    # Splitting the data
+    x_orig = df[
+        [
+            "rolling_batting_avg_diff",
+            "rolling_walk_to_strikeout_diff",
+            "rolling_groundB_to_flyB_diff",
+            "rolling_homeRun_to_hit_diff",
+            "rolling_plateApp_to_strikeout_diff",
+            "rolling_onBasePerc_diff",
+            "rolling_walks_allow_diff",
+            "rolling_hits_allow_diff",
+            "rolling_homeRuns_allow_diff",
+            "rolling_stikeOuts_allow_diff",
+        ]
+    ].values
+
+    # Setting the target
+    y = df[["HomeTeamWins"]].values
+
+    # Split
+    x_train, x_test, y_train, y_test = train_test_split(x_orig, y, test_size=0.20)
+
+    # Random Forest
+    # source : https://www.geeksforgeeks.org/random-forest-classifier-using-scikit-learn/
+    print_heading("Random Forest Model via Pipeline Predictions")
+    rf_pipeline = Pipeline(
+        [
+            ("Standard Scalar", StandardScaler()),
+            ("RandomForest", RandomForestClassifier(random_state=1234)),
+        ]
+    )
+    rf_pipeline.fit(x_train, np.ravel(y_train))
+    # This .ravel() was suggested by PyCharm when I got an error message
+
+    # performing predictions on the test dataset
+    # y_pred = mod.predict(x_test)
+
+    rf_probability = rf_pipeline.predict_proba(x_test)
+    rf_prediction = rf_pipeline.predict(x_test)
+    rf_score = rf_pipeline.score(x_test, y_test)
+    print(f"Probability: {rf_probability}")
+    print(f"Predictions: {rf_prediction}")
+    print(f"Score: {rf_score}")
+    # using metrics module for accuracy calculation
+    # print("ACCURACY OF THE MODEL: ", metrics.accuracy_score(y_test, y_pred))
+
+    # Gaussian Naive Bayes
+    print_heading("Gaussian Naive Bayes Model via Pipeline Predictions")
+    gnb_pipeline = Pipeline(
+        [
+            ("Standard Scalar", StandardScaler()),
+            ("Gaussian Naive Bayes", GaussianNB()),
+        ]
+    )
+    gnb_pipeline.fit(x_train, np.ravel(y_train))
+
+    # y_pred = mod.predict(x_test)
+    # This .ravel() was suggested by PyCharm when I got an error message
+
+    gnb_probability = gnb_pipeline.predict_proba(x_test)
+    gnb_prediction = gnb_pipeline.predict(x_test)
+    gnb_score = gnb_pipeline.score(x_test, y_test)
+    print(f"Probability: {gnb_probability}")
+    print(f"Predictions: {gnb_prediction}")
+    print(f"Score: {gnb_score}")
+    # print("ACCURACY OF THE MODEL: ", metrics.accuracy_score(y_test, y_pred))
+
+
 def main():
     # setting the global was suggested by pycharm
     global df_continuous, df_categorical
@@ -663,9 +898,32 @@ def main():
     # create output plots folder
     create_folder()
 
+    # sql connection
+    # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture04.html#/7/3
+    db_user = "root"
+    db_pass = ""  # pragma: allowlist secret
+    db_host = "localhost"
+    db_database = "baseball_test"
+    connect_string = (
+        f"mariadb+mariadbconnector://{db_user}:{db_pass}@"
+        f"{db_host}/{db_database}"  # pragma: allowlist secret
+    )  # pragma: allowlist secret
+
+    sql_engine = sqlalchemy.create_engine(connect_string)
+
+    query = """SELECT * FROM AAA_final"""
+
+    df = pd.read_sql_query(query, sql_engine)
+    # print(df.head(10))
+
+    response = "HomeTeamWins"
+    df_pred_only = df.drop(columns=["game_id", "HomeTeamWins"])
+    predictors = list(df_pred_only.columns.values)
+
+    print(df, predictors, response)
     # import datasets from a modified dataset_loader.py file
-    test_datasets = 2
-    df, predictors, response = test_datasets.get_test_data_set(data_set_name="tips")
+    # test_datasets = 2
+    # df, predictors, response = test_datasets.get_test_data_set(data_set_name="tips")
     # continuous response test_sets : ["mpg", "tips", "diabetes"]
     # bool response test_sets : ["titanic", "breast_cancer"]
     df = df.dropna()
@@ -706,6 +964,11 @@ def main():
             cont_predictors.append(predictor)
         all_continuous = df[df.columns.intersection(cont_predictors)]
         df_continuous = pd.DataFrame(all_continuous)
+    importance_dict = random_forest_features(df, df_continuous, response, df_data_types)
+    importance_df = pd.DataFrame(
+        importance_dict.items(), columns=["Pred", "RF_Importance"]
+    )
+    # print(importance_df.head())
 
     # define categorical predictors
     cat_predictors = []
@@ -716,7 +979,59 @@ def main():
         df_categorical = pd.DataFrame(all_categorical)
 
     # write main output file to put data in
-    f = open("Output_Plots/final_output.html", "w")
+    f = open("Output_Plots/AAA_final_output.html", "w")
+
+    print_heading("Homework 4 Section")
+    # create final dataset for the printout
+    df_hw4 = pd.DataFrame(
+        columns=[
+            "Predictor",
+            "Type",
+            "t_value",
+            "p_value",
+            "DMR",
+            "wDMR",
+            "DMR_plot",
+            "Plot",
+        ]
+    )
+    # generate plots, get p values and t scores, mean of response data
+    for predictor in predictors:
+        print_heading(predictor)
+        if_path = initial_plots(df, predictor, response, df_data_types)
+        t_val, p_val = pt_scores(df, predictor, response, df_data_types)
+        DMR, wDMR, f_path = mor_plots(df, predictor, response, df_data_types)
+
+        # setup links for printout
+        # source : https://stackoverflow.com/questions/12021781/the-right-way-of-setting-a-href-when-its-a-local-file
+        m_link = f'<a href="{f_path}">link</a>'
+        i_link = f'<a href="{if_path}">link</a>'
+
+        # append each predictor's values to a new row
+        df_hw4.loc[len(df_hw4)] = [
+            predictor,
+            df_data_types[predictor],
+            t_val,
+            p_val,
+            DMR,
+            wDMR,
+            m_link,
+            i_link,
+        ]
+    # merge with Random Forest Data (since this was calculated for continuous variables only)
+    # source : https://realpython.com/pandas-merge-join-and-concat/#pandas-merge-combining-data-on-
+    # common-columns-or-indices
+    merged_df = pd.merge(
+        df_hw4, importance_df, how="left", left_on="Predictor", right_on="Pred"
+    )
+    clean_df = merged_df.drop("Pred", axis=1)
+    print(clean_df.head(20))
+
+    res = clean_df.to_html(
+        render_links=True,
+        escape=False,
+    )
+    f.write(res)
 
     print_heading("Continuous/Continuous")
     # create dataset for the printout
@@ -1052,6 +1367,9 @@ def main():
     f.write(res_cat_cont_bf + "\n")
 
     f.close()
+
+    models(df)
+    # The random forest performs better over the naive bayes !!! Both of them are not that great though!
 
     return 0
 

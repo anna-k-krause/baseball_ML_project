@@ -5,48 +5,8 @@ USE baseball_test;
 -- show tables
 -- SHOW TABLES;
 
--- Get batter stats
-/*
-SELECT *
-FROM team_batting_counts
-LIMIT 10;
-
--- pitching
-SELECT *
-FROM team_pitching_counts
-LIMIT 10;
-
--- team game
-SELECT *
-FROM team_game_prior_next
-LIMIT 10;
-
--- team results
-SELECT *
-FROM team_results
-LIMIT 10;
-
--- team streak
-SELECT *
-FROM team_streak
-LIMIT 10;
-
--- team
-SELECT *
-FROM team
-LIMIT 10;
-
--- game
-SELECT *
-FROM game
-LIMIT 10;
-
-
-*/
-
--- maybe use sqlalchemy 1.4
-
--- rolling average for teams
+-- get metrics for all teams
+-- source : https://en.wikipedia.org/wiki/Baseball_statistics
 
 -- Last 100 Days Rolling Batting Average ------
 -- Home team
@@ -101,11 +61,7 @@ ORDER BY team_id, local_date, game_id
 ;
 
 DROP TABLE z_home_ba_dates, z_home_ba_last_100_dates, z_home_last_100_ba_totals;
--- check last 100 avg
-SELECT game_id, team_id, local_date, ba_rolling_avg
-FROM z_home_ba_rolling_avg
-LIMIT 100
-;
+
 -- away team
 -- Get all dates
 CREATE OR REPLACE TABLE z_away_ba_dates AS
@@ -157,11 +113,6 @@ FROM z_away_last_100_ba_totals
 ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_away_ba_dates, z_away_ba_last_100_dates, z_away_last_100_ba_totals;
--- check last 100 avg
-SELECT game_id, team_id, local_date, ba_rolling_avg
-FROM z_away_ba_rolling_avg
-LIMIT 100
-;
 
 -- ----------------------------------------------------------------------------
 -- BB/K (Walk to Strikeout Ratio Rolling Average)
@@ -216,11 +167,6 @@ ORDER BY team_id, local_date, game_id
 ;
 
 DROP TABLE z_home_bbk_dates, z_home_bbk_last_100_dates, z_home_last_100_bbk_totals;
--- check last 100 avg
-SELECT game_id, team_id, local_date, bbk_rolling_avg
-FROM z_home_bbk_avg
-LIMIT 100
-;
 
 -- away team bbk
 -- Get all dates
@@ -273,11 +219,6 @@ FROM z_away_last_100_bbk_totals
 ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_away_bbk_dates, z_away_bbk_last_100_dates, z_away_last_100_bbk_totals;
--- check last 100 avg
-SELECT game_id, team_id, local_date, bkk_rolling_avg
-FROM z_away_bbk_avg
-LIMIT 100
-;
 
 -- --------------------------------------------------------------------------------------
 -- HR/H – Home runs per hit: home runs divided by total hits
@@ -332,11 +273,6 @@ FROM z_home_last_100_hrh_totals
 ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_home_hrh_dates, z_home_hrh_last_100_dates, z_home_last_100_hrh_totals;
--- check last 100 avg
-SELECT game_id, team_id, local_date, hrh_rolling_avg
-FROM z_home_hrh_avg
-LIMIT 100
-;
 
 -- away team
 -- Get all dates
@@ -387,11 +323,6 @@ FROM z_away_last_100_hrh_totals
 ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_away_hrh_dates, z_away_hrh_last_100_dates, z_away_last_100_hrh_totals;
--- check last 100 avg
-SELECT game_id, team_id, local_date, hrh_rolling_avg
-FROM z_away_hrh_avg
-LIMIT 100
-;
 
 -- ------------------------------------------------------------------------------
 -- PA/SO – Plate appearances per strikeout: number of times a batter strikes out to their plate appearance
@@ -446,11 +377,6 @@ FROM z_home_last_100_paso_totals
 ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_home_paso_dates, z_home_paso_last_100_dates, z_home_last_100_paso_totals;
--- check last 100 avg
-SELECT game_id, team_id, local_date, paso_rolling_avg
-FROM z_home_paso_avg
-LIMIT 100
-;
 
 -- away team
 -- Get all dates
@@ -503,11 +429,6 @@ FROM z_away_last_100_paso_totals
 ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_away_paso_dates, z_away_paso_last_100_dates, z_away_last_100_paso_totals;
--- check last 100 avg
-SELECT game_id, team_id, local_date, paso_rolling_avg
-FROM z_away_paso_avg
-LIMIT 100
-;
 
 -- ------------------------------------------------------------------------------
 -- GO/AO – Ground Out to Air Out ratio, aka Ground ball fly ball ratio:
@@ -561,11 +482,7 @@ FROM z_home_last_100_goao_totals
 ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_home_goao_dates, z_home_goao_last_100_dates, z_home_last_100_goao_totals;
--- check last 100 avg
-SELECT game_id, team_id, local_date, goao_rolling_avg
-FROM z_home_goao_avg
-LIMIT 100
-;
+
 
 -- away team
 -- Get all dates
@@ -616,11 +533,7 @@ FROM z_away_last_100_goao_totals
 ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_away_goao_dates, z_away_goao_last_100_dates, z_away_last_100_goao_totals;
--- check last 100 avg
-SELECT game_id, team_id, local_date, goao_rolling_avg
-FROM z_away_goao_avg
-LIMIT 100
-;
+
 -- ------------------------------------------------------------------------------
 -- OBP – On-base percentage: times reached base (H + BB + HBP)
 -- divided by at bats plus walks plus hit by pitch plus sacrifice flies (AB + BB + HBP + SF)
@@ -685,11 +598,7 @@ FROM z_home_last_100_obp_totals
 ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_home_obp_dates, z_home_obp_last_100_dates, z_home_last_100_obp_totals;
--- check last 100 avg
-SELECT team_id, local_date, game_id, obp_rolling_avg
-FROM z_home_obp_avg
-LIMIT 100
-;
+
 -- away team
 -- Get all dates
 CREATE OR REPLACE TABLE z_away_obp_dates AS
@@ -752,10 +661,7 @@ ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_away_obp_dates, z_away_obp_last_100_dates, z_away_last_100_obp_totals;
 -- check last 100 avg
-SELECT team_id, local_date, game_id, obp_rolling_avg
-FROM z_away_obp_avg
-LIMIT 100
-;
+
 -- ------------------------------------------------------------------------------
 -- Pitching
 -- BB/9 – Bases on balls per 9 innings pitched: base on balls multiplied by nine, divided by innings pitched
@@ -812,10 +718,7 @@ ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_home_bb9_dates, z_home_bb9_last_100_dates, z_home_last_100_bb9_totals;
 -- check last 100 avg
-SELECT game_id, team_id, local_date, bb9_rolling_avg
-FROM z_home_bb9_avg
-LIMIT 100
-;
+
 -- away team
 -- Get all dates
 -- one game had 2 starting pitchers, so I discarded the game as a tabular error
@@ -869,10 +772,7 @@ ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_away_bb9_dates, z_away_bb9_last_100_dates, z_away_last_100_bb9_totals;
 -- check last 100 avg
-SELECT game_id, team_id, local_date, bb9_rolling_avg
-FROM z_away_bb9_avg
-LIMIT 100
-;
+
 -- ----------------------------------------------------------------------------------------------------------
 -- H/9 (or HA/9) – Hits allowed per 9 innings pitched: hits allowed times nine divided by innings pitched
 -- home team
@@ -928,10 +828,7 @@ ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_home_h9_dates, z_home_h9_last_100_dates, z_home_last_100_h9_totals;
 -- check last 100 avg
-SELECT game_id, team_id, local_date, h9_rolling_avg
-FROM z_home_h9_avg
-LIMIT 100
-;
+
 -- away team
 -- Get all dates
 -- one game had 2 starting pitchers, so I discarded the game as a tabular error
@@ -985,10 +882,7 @@ ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_away_h9_dates, z_away_h9_last_100_dates, z_away_last_100_h9_totals;
 -- check last 100 avg
-SELECT game_id, team_id, local_date, h9_rolling_avg
-FROM z_away_h9_avg
-LIMIT 100
-;
+
 -- ----------------------------------------------------------------------------------------------------------
 -- HR/9 (or HRA/9) – Home runs per nine innings: home runs allowed times nine divided by innings pitched (also known as HR/9IP)
 -- home team
@@ -1044,10 +938,7 @@ ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_home_hr9_dates, z_home_hr9_last_100_dates, z_home_last_100_hr9_totals;
 -- check last 100 avg
-SELECT game_id, team_id, local_date, hr9_rolling_avg
-FROM z_home_hr9_avg
-LIMIT 100
-;
+
 -- away team
 -- Get all dates
 -- one game had 2 starting pitchers, so I discarded the game as a tabular error
@@ -1101,10 +992,7 @@ ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_away_hr9_dates, z_away_hr9_last_100_dates, z_away_last_100_hr9_totals;
 -- check last 100 avg
-SELECT game_id, team_id, local_date, hr9_rolling_avg
-FROM z_away_hr9_avg
-LIMIT 100
-;
+
 -- ----------------------------------------------------------------------------------------------------------
 -- K/9 (or SO/9) – Strikeouts per 9 innings pitched: strikeouts times nine divided by innings pitched
 -- home team
@@ -1160,10 +1048,7 @@ ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_home_so9_dates, z_home_so9_last_100_dates, z_home_last_100_so9_totals;
 -- check last 100 avg
-SELECT game_id, team_id, local_date, so9_rolling_avg
-FROM z_home_so9_avg
-LIMIT 100
-;
+
 -- away team
 -- Get all dates
 -- one game had 2 starting pitchers, so I discarded the game as a tabular error
@@ -1216,29 +1101,7 @@ FROM z_away_last_100_so9_totals
 ORDER BY team_id, local_date, game_id
 ;
 DROP TABLE z_away_so9_dates, z_away_so9_last_100_dates, z_away_last_100_so9_totals;
--- check last 100 avg
-SELECT game_id, team_id, local_date, so9_rolling_avg
-FROM z_away_so9_avg
-LIMIT 100
-;
 
-/*
-DROP TABLE z_away_ba_rolling_avg,
-z_away_bbk_avg,
-z_away_hrh_avg,
-z_away_paso_avg,
-z_home_ba_rolling_avg,
-z_away_ba_rolling_avg,
-z_home_bbk_avg,
-z_home_goao_avg,
-z_home_hrh_avg,
-z_home_paso_avg,
-z_home_so9_avg,
-z_away_bb9_avg,
-z_away_h9_avg,
-z_home_hr9_avg,
-z_away_hr9_avg;
-*/
 -- Combining all columns into one table
 CREATE OR REPLACE TABLE z_ba_data AS
 SELECT h.game_id
@@ -1351,7 +1214,7 @@ JOIN z_obp_data obp ON t.game_id = obp.game_id
 WHERE t.homeTeam = 1
 ORDER BY t.game_id
 ;
-CREATE OR REPLACE TABLE zz_final AS
+CREATE OR REPLACE TABLE AAA_final AS
 SELECT t.game_id
     , t.HomeTeamWins
     , t.rolling_batting_avg_diff
@@ -1372,5 +1235,41 @@ JOIN z_so9_data so9 ON t.game_id = so9.game_id
 ORDER BY t.game_id
 ;
 
-SELECT * FROM zz_final LIMIT 100;
+SELECT * FROM AAA_final LIMIT 100;
 
+/*
+DROP TABLE
+z_away_ba_rolling_avg,
+z_away_bb9_avg,
+z_away_bbk_avg,
+z_away_goao_avg,
+z_away_h9_avg,
+z_away_hr9_avg,
+z_away_hrh_avg,
+z_away_obp_avg,
+z_away_paso_avg,
+z_away_so9_avg,
+z_ba_data,
+z_bb9_data,
+z_bbk_data,
+z_goao_data,
+z_h9_data,
+z_home_ba_dates,
+z_home_ba_last_100_dates,
+z_home_ba_rolling_avg,
+z_home_bb9_avg,
+z_home_bbk_avg,
+z_home_goao_avg,
+z_home_h9_avg,
+z_home_hr9_avg,
+z_home_hrh_avg,
+z_home_obp_avg,
+z_home_paso_avg,
+z_home_so9_avg,
+z_hr9_data,
+z_hrh_data,
+z_obp_data,
+z_paso_data,
+z_so9_data,
+zz_final_test_p1;
+*/
