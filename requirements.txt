@@ -10,6 +10,8 @@ cycler==0.11.0
     # via matplotlib
 fonttools==4.38.0
     # via matplotlib
+gunicorn==20.1.0
+    # via -r requirements.in
 joblib==1.2.0
     # via scikit-learn
 kiwisolver==1.4.4
@@ -77,3 +79,6 @@ tenacity==8.1.0
     # via plotly
 threadpoolctl==3.1.0
     # via scikit-learn
+
+# The following packages are considered to be unsafe in a requirements file:
+# setuptools
