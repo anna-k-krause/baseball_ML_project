@@ -1,9 +1,3 @@
-# Homework 6
-# Need to get MariaDB image, then pause it for 15 seconds to get database, then run sql code and python code
-
-
-# Example
-
 
 FROM python:3.6.9
 
@@ -25,14 +19,19 @@ COPY requirements.txt .
 RUN pip3 install --compile --no-cache-dir -r requirements.txt
 
 # Copy over code
-COPY flask_examples flask_examples
-COPY models models
+COPY hw_06_prep.sql hw_06_prep.sql
+COPY hw_06_main.py hw_06_main.py
 
 # Create an unprivileged user
 RUN useradd --system --user-group --shell /sbin/nologin services
 
-# Switch to the unprivileged user
+Switch to the unprivileged user
 USER services
 
 # Run app
-# CMD gunicorn --bind :$PORT --timeout 500 --workers 1 --threads 2 flask_examples.simple_pickled_model:app
+CMD gunicorn --bind :$PORT --timeout 500 --workers 1 --threads 2 hw_06_files.hw_06_prep.sql
+# CMD gunicorn --bind :$PORT --timeout 500 --workers 1 --threads 2 hw_06_files.hw_06_prep:hw_06_main.py
+# CMD [ "gunicorn" , "--bind", ":$PORT", "--timeout 500", "--workers 1", "--threads 2", "hw_06_files.hw_06_prep",
+# "hw_06_files.hw_06_main.py"]
+
+# source : https://medium.com/cranecloud/docker-django-and-gunicorn-61275f4ea14c
