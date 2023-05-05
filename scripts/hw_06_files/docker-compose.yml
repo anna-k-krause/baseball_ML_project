@@ -1,5 +1,6 @@
-version: "3.9"
+version: "2.0"
 
+# source : https://github.com/linuxserver/docker-mariadb
 services:
   mariadb:
     image: lscr.io/linuxserver/mariadb:latest
@@ -12,14 +13,14 @@ services:
     volumes:
       - /Users/annakrause/bda602/src/bda_602/scripts/hw_06_files/app:/config
     ports:
-      - 3311:3306
+      - 3400:3306
     restart: unless-stopped
 
+  # source https://docs.docker.com/compose/gettingstarted/
   db_cli:
     build:
       context: .
       dockerfile: Dockerfile
-    #    image: mysql:latest
     depends_on:
       - mariadb
     environment:
@@ -28,4 +29,4 @@ services:
     volumes:
       - /Users/annakrause/bda602/src/bda_602/scripts/hw_06_files/app
     ports:
-      - 3312:3306
+      - 3401:3306

@@ -7,4 +7,3 @@ mariadb
 pyspark
 statsmodels
 sqlalchemy
-gunicorn
