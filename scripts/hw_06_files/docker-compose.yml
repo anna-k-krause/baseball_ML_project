@@ -7,33 +7,25 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Etc/UTC
       - MYSQL_ROOT_PASSWORD=root
       - TZ=America/Los_Angeles
     volumes:
-      #- /Users/annakrause/bda602/src/bda_602/scripts/hw_06_files/app:/config
-      - /Users/annakrause/bda602/src/bda_602/scripts/hw_06_files/config
+      - /Users/annakrause/bda602/src/bda_602/scripts/hw_06_files/app:/config
     ports:
-      - 3307:3306
+      - 3311:3306
     restart: unless-stopped
 
-  hw_06_files:
+  db_cli:
     build:
       context: .
       dockerfile: Dockerfile
-    image: mysql:latest
+    #    image: mysql:latest
     depends_on:
       - mariadb
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_DATABASE=baseball
     volumes:
-      - ./baseball.sql:/docker-entrypoint-initdb.d/baseball.sql
-      - ./hw_06_prep.sql:/docker-entrypoint-initdb.d/hw_06_prep.sql
-    command: [
-        "sh",
-        "-c",
-        "sleep 10 && until mysql -uroot -proot -hmariadb -e 'SELECT 1'; do sleep 1; done; mysql -uroot -proot
-        -hmariadb baseball < /docker-entrypoint-initdb.d/baseball.sql && mysql -uroot -proot -hmariadb baseball
-        < /docker-entrypoint-initdb.d/hw_06_prep.sql",
-      ]
+      - /Users/annakrause/bda602/src/bda_602/scripts/hw_06_files/app
+    ports:
+      - 3312:3306

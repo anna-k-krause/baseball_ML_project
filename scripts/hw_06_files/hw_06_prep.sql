@@ -1,6 +1,6 @@
 -- SHOW DATABASES;
 
-USE baseball_test;
+USE baseball;
 
 -- show tables
 -- SHOW TABLES;
@@ -1235,7 +1235,7 @@ JOIN z_so9_data so9 ON t.game_id = so9.game_id
 ORDER BY t.game_id
 ;
 
-SELECT * FROM AAA_final LIMIT 100;
+-- SELECT * FROM AAA_final LIMIT 100;
 
 /*
 DROP TABLE
