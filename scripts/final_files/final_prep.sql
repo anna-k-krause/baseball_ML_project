@@ -563,13 +563,23 @@ WHERE game_id != '176688'
 ;
 
 
-CREATE OR REPLACE TABLE z_game_env_prep AS
+CREATE OR REPLACE TABLE z_game_env AS
 SELECT game_id
     , CASE WHEN wind LIKE '%Indoors%' THEN 'indoor' ELSE 'outdoor' END AS game_environment
     , CAST(LEFT(temp, LENGTH(temp) - 8) AS int) AS game_temp
     , winddir AS game_winddir
     , overcast AS game_weather
 FROM boxscore
+ORDER BY game_id
+;
+CREATE OR REPLACE TABLE z_game_env_prep AS
+SELECT game_id
+    , game_environment
+    , game_temp
+    , game_winddir
+    , game_weather
+FROM z_game_env
+WHERE game_temp <= 150
 ORDER BY game_id
 ;
 
@@ -638,12 +648,12 @@ SELECT t.game_id
     , s.game_scoring
     , q.quality_start
 FROM team_batting_counts t
-JOIN z_batting_data b ON t.game_id = b.game_id
-JOIN z_pitching_data p ON t.game_id = p.game_id
-JOIN z_game_time_prep gt ON t.game_id = gt.game_id
-JOIN z_game_env_prep e ON t.game_id = e.game_id
-JOIN z_game_score_prep s ON t.game_id = s.game_id
-JOIN z_qs_prep q ON t.game_id = q.game_id
+LEFT JOIN z_batting_data b ON t.game_id = b.game_id
+LEFT JOIN z_pitching_data p ON t.game_id = p.game_id
+LEFT JOIN z_game_time_prep gt ON t.game_id = gt.game_id
+LEFT JOIN z_game_env_prep e ON t.game_id = e.game_id
+LEFT JOIN z_game_score_prep s ON t.game_id = s.game_id
+LEFT JOIN z_qs_prep q ON t.game_id = q.game_id
 WHERE t.homeTeam = 1
 ORDER BY t.game_id
 ;

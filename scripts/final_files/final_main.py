@@ -17,11 +17,20 @@ import statsmodels.api as sm
 from plotly import express as px
 from plotly.subplots import make_subplots
 from scipy import stats
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import (
+    GradientBoostingClassifier,
+    RandomForestClassifier,
+    RandomForestRegressor,
+)
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, precision_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.svm import SVC
 
 
 def print_heading(title):
@@ -820,78 +829,209 @@ def mor_plots_brute_force_cc(df, p_cat, p_cont, response, df_data_types):
 
 
 def models(df):
+
+    # Pre Processing
+    # source: https://stackoverflow.com/questions/48673402/how-can-i-standardize-only-numeric-variables-in-an-
+    # sklearn-pipeline
+
+    numeric_features = [
+        "rolling_batting_avg_diff",
+        "rolling_walk_to_strikeout_diff",
+        "rolling_groundB_to_flyB_diff",
+        "rolling_plateApp_to_strikeout_diff",
+        "rolling_homeRun_to_hit_diff",
+        "rolling_onBasePerc_diff",
+        "rolling_atBat_homeRun_diff",
+        "rolling_timesOnBase_diff",
+        "rolling_slug_diff",
+        "rolling_iso_diff",
+        "rolling_gpa_diff",
+        "rolling_walks_allow_diff",
+        "rolling_hits_allow_diff",
+        "rolling_homeRuns_allow_diff",
+        "rolling_stikeOuts_allow_diff",
+        "rolling_whip_diff",
+        "rolling_pfr_diff",
+        "rolling_fip_diff",
+        "rolling_walk_ratio_diff",
+        "rolling_kbb_diff",
+        "rolling_pitch_goao_diff",
+    ]
+
+    categorical_features = [
+        "stadium_id",
+        "game_time",
+        "game_environment",
+        "game_temp",
+        "game_weather",
+        "game_winddir",
+        "game_scoring",
+        "quality_start",
+    ]
+
+    numeric_features_clean = [
+        "rolling_walks_allow_diff",
+        "rolling_hits_allow_diff",
+        "rolling_homeRuns_allow_diff",
+        "rolling_stikeOuts_allow_diff",
+        "rolling_whip_diff",
+        "rolling_pfr_diff",
+        "rolling_fip_diff",
+    ]
+    categorical_features_clean = ["stadium_id", "quality_start"]
+
+    numeric_transformer = Pipeline(steps=[("scaler", StandardScaler())])
+    categorical_transformer = OneHotEncoder(handle_unknown="ignore")
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", numeric_transformer, numeric_features_clean),
+            ("cat", categorical_transformer, categorical_features_clean),
+        ],
+        sparse_threshold=0,
+    )
+
+    clf = Pipeline(
+        steps=[
+            ("preprocessor", preprocessor),
+            ("classifier", LogisticRegression(max_iter=300)),
+        ]
+    )
+
+    rf = Pipeline(
+        steps=[
+            ("preprocessor", preprocessor),
+            (" rf classifier", RandomForestClassifier(random_state=1234)),
+        ]
+    )
+
+    gnb = Pipeline(
+        steps=[("preprocessor", preprocessor), ("gnb classifier", GaussianNB())]
+    )
+
+    svm = Pipeline(
+        steps=[
+            ("preprocessor", preprocessor),
+            ("svm classifier", SVC(kernel="rbf", probability=True)),
+        ]
+    )
+
+    gbt = Pipeline(
+        steps=[
+            ("preprocessor", preprocessor),
+            ("svm classifier", GradientBoostingClassifier(random_state=1234)),
+        ]
+    )
+
+    knn = Pipeline(
+        steps=[
+            ("preprocessor", preprocessor),
+            ("svm classifier", KNeighborsClassifier(n_neighbors=5)),
+        ]
+    )
+
     # Splitting the data
     x_orig = df[
         [
             "rolling_batting_avg_diff",
             "rolling_walk_to_strikeout_diff",
             "rolling_groundB_to_flyB_diff",
-            "rolling_homeRun_to_hit_diff",
             "rolling_plateApp_to_strikeout_diff",
+            "rolling_homeRun_to_hit_diff",
             "rolling_onBasePerc_diff",
+            "rolling_atBat_homeRun_diff",
+            "rolling_timesOnBase_diff",
+            "rolling_slug_diff",
+            "rolling_iso_diff",
+            "rolling_gpa_diff",
             "rolling_walks_allow_diff",
             "rolling_hits_allow_diff",
             "rolling_homeRuns_allow_diff",
             "rolling_stikeOuts_allow_diff",
+            "rolling_whip_diff",
+            "rolling_pfr_diff",
+            "rolling_fip_diff",
+            "rolling_walk_ratio_diff",
+            "rolling_kbb_diff",
+            "rolling_pitch_goao_diff",
+            "stadium_id",
+            "game_time",
+            "game_environment",
+            "game_temp",
+            "game_weather",
+            "game_winddir",
+            "game_scoring",
+            "quality_start",
         ]
-    ].values
+    ]
+
+    x_orig_clean = df[
+        [
+            "rolling_walks_allow_diff",
+            "rolling_hits_allow_diff",
+            "rolling_homeRuns_allow_diff",
+            "rolling_stikeOuts_allow_diff",
+            "rolling_whip_diff",
+            "rolling_pfr_diff",
+            "rolling_fip_diff",
+            "stadium_id",
+            "quality_start",
+        ]
+    ]
 
     # Setting the target
-    y = df[["HomeTeamWins"]].values
+    y = df[["HomeTeamWins"]]
 
-    # Split
-    x_train, x_test, y_train, y_test = train_test_split(x_orig, y, test_size=0.20)
+    print(x_orig.type(), numeric_features, categorical_features)
 
-    # Random Forest
-    # source : https://www.geeksforgeeks.org/random-forest-classifier-using-scikit-learn/
-    print_heading("Random Forest Model via Pipeline Predictions")
-    rf_pipeline = Pipeline(
-        [
-            ("Standard Scalar", StandardScaler()),
-            ("RandomForest", RandomForestClassifier(random_state=1234)),
-        ]
+    # Split (in order of game_id, so we will predict on the last 20% of games)
+    x_train, x_test, y_train, y_test = train_test_split(
+        x_orig_clean, y, test_size=0.20, shuffle=False
     )
-    rf_pipeline.fit(x_train, np.ravel(y_train))
-    # This .ravel() was suggested by PyCharm when I got an error message
 
-    # performing predictions on the test dataset
-    # y_pred = mod.predict(x_test)
+    clf.fit(x_train, np.ravel(y_train))
+    rf.fit(x_train, np.ravel(y_train))
+    gnb.fit(x_train, np.ravel(y_train))
+    svm.fit(x_train, np.ravel(y_train))
+    gbt.fit(x_train, np.ravel(y_train))
+    knn.fit(x_train, np.ravel(y_train))
 
-    rf_probability = rf_pipeline.predict_proba(x_test)
-    rf_prediction = rf_pipeline.predict(x_test)
-    rf_score = rf_pipeline.score(x_test, y_test)
-    print(f"Probability: {rf_probability}")
-    print(f"Predictions: {rf_prediction}")
-    print(f"Score: {rf_score}")
-    # using metrics module for accuracy calculation
-    # print("ACCURACY OF THE MODEL: ", metrics.accuracy_score(y_test, y_pred))
+    # Testing model performance
+    y_pred = clf.predict(x_test)
+    y_pred_rf = rf.predict(x_test)
+    y_pred_gnb = gnb.predict(x_test)
+    y_pred_svm = svm.predict(x_test)
+    y_pred_gbt = gbt.predict(x_test)
+    y_pred_knn = knn.predict(x_test)
 
-    # Gaussian Naive Bayes
-    print_heading("Gaussian Naive Bayes Model via Pipeline Predictions")
-    gnb_pipeline = Pipeline(
-        [
-            ("Standard Scalar", StandardScaler()),
-            ("Gaussian Naive Bayes", GaussianNB()),
-        ]
-    )
-    gnb_pipeline.fit(x_train, np.ravel(y_train))
-
-    # y_pred = mod.predict(x_test)
-    # This .ravel() was suggested by PyCharm when I got an error message
-
-    gnb_probability = gnb_pipeline.predict_proba(x_test)
-    gnb_prediction = gnb_pipeline.predict(x_test)
-    gnb_score = gnb_pipeline.score(x_test, y_test)
-    print(f"Probability: {gnb_probability}")
-    print(f"Predictions: {gnb_prediction}")
-    print(f"Score: {gnb_score}")
-    # print("ACCURACY OF THE MODEL: ", metrics.accuracy_score(y_test, y_pred))
+    # print("model score: %.3f" % clf.score(x_test, y_test))
+    print("Accuracy Scores:")
+    print("Logistic Regression: ", accuracy_score(np.ravel(y_test), np.ravel(y_pred)))
+    print("Random Forest: ", accuracy_score(np.ravel(y_test), np.ravel(y_pred_rf)))
+    print("GNB: ", accuracy_score(np.ravel(y_test), np.ravel(y_pred_gnb)))
+    print("SVM: ", accuracy_score(np.ravel(y_test), np.ravel(y_pred_svm)))
+    print("GBT: ", accuracy_score(np.ravel(y_test), np.ravel(y_pred_gbt)))
+    print("KNN: ", accuracy_score(np.ravel(y_test), np.ravel(y_pred_knn)))
+    print("Precision Scores:")
+    print("Logistic Regression: ", precision_score(np.ravel(y_test), np.ravel(y_pred)))
+    print("Random Forest: ", precision_score(np.ravel(y_test), np.ravel(y_pred_rf)))
+    print("GNB: ", precision_score(np.ravel(y_test), np.ravel(y_pred_gnb)))
+    print("SVM: ", precision_score(np.ravel(y_test), np.ravel(y_pred_svm)))
+    print("GBT: ", precision_score(np.ravel(y_test), np.ravel(y_pred_gbt)))
+    print("KNN: ", precision_score(np.ravel(y_test), np.ravel(y_pred_knn)))
+    print("ROC_AUC Scores:")
+    print("Logistic Regression: ", roc_auc_score(np.ravel(y_test), np.ravel(y_pred)))
+    print("Random Forest: ", roc_auc_score(np.ravel(y_test), np.ravel(y_pred_rf)))
+    print("GNB: ", roc_auc_score(np.ravel(y_test), np.ravel(y_pred_gnb)))
+    print("SVM: ", roc_auc_score(np.ravel(y_test), np.ravel(y_pred_svm)))
+    print("GBT: ", roc_auc_score(np.ravel(y_test), np.ravel(y_pred_gbt)))
+    print("KNN: ", roc_auc_score(np.ravel(y_test), np.ravel(y_pred_knn)))
 
 
 def main():
     # setting the global was suggested by pycharm
     global df_continuous, df_categorical
-    pd.set_option("display.max_rows", 20)
+    pd.set_option("display.max_rows", 50)
     pd.set_option("display.max_columns", 500)
     pd.set_option("display.width", 1_000)
 
@@ -901,9 +1041,9 @@ def main():
     # sql connection
     # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture04.html#/7/3
     db_user = "root"
-    db_pass = ""  # pragma: allowlist secret
+    db_pass = "Ravens%4098"  # pragma: allowlist secret
     db_host = "localhost"
-    db_database = "baseball_test"
+    db_database = "baseball_2"
     connect_string = (
         f"mariadb+mariadbconnector://{db_user}:{db_pass}@"
         f"{db_host}/{db_database}"  # pragma: allowlist secret
@@ -914,19 +1054,17 @@ def main():
     query = """SELECT * FROM AAA_final"""
 
     df = pd.read_sql_query(query, sql_engine)
-    # print(df.head(10))
+    # print(df.head(20))
 
     response = "HomeTeamWins"
     df_pred_only = df.drop(columns=["game_id", "HomeTeamWins"])
     predictors = list(df_pred_only.columns.values)
 
-    print(df, predictors, response)
-    # import datasets from a modified dataset_loader.py file
-    # test_datasets = 2
-    # df, predictors, response = test_datasets.get_test_data_set(data_set_name="tips")
-    # continuous response test_sets : ["mpg", "tips", "diabetes"]
-    # bool response test_sets : ["titanic", "breast_cancer"]
-    df = df.dropna()
+    # print(df, predictors, response)
+    # print(df[df.isna().any(axis=1)])
+    df = df.dropna(axis=0)
+    df = df.reset_index(drop=True)
+    # I decided to drop these rows because there were only 9 rows with missing data, most of them pitching stats
 
     # create dictionary to store each predictor, response, and their associated data types
     # source : https://www.geeksforgeeks.org/python-add-new-keys-to-a-dictionary/
@@ -944,6 +1082,8 @@ def main():
     # source : https://stackoverflow.com/questions/42449594/python-pandas-get-unique-count-of-column
     for predictor in predictors:
         if isinstance(df[predictor][0], str) or len(df[predictor].unique()) == 2:
+            df_data_types[predictor] = "categorical"
+        elif predictor == "stadium_id":
             df_data_types[predictor] = "categorical"
         else:
             df_data_types[predictor] = "continuous"
@@ -1044,7 +1184,7 @@ def main():
             if cont_1 != cont_2:
                 p_corr = cont_correlation(df_continuous, cont_1, cont_2)
                 DMR2, wDMR2, f_path_cont_2 = mor_plots(
-                    df, cont_1, response, df_data_types
+                    df, cont_2, response, df_data_types
                 )
 
                 cont_1_link = f'<a href="{f_path_cont_1}">{cont_1}</a>'
@@ -1090,7 +1230,7 @@ def main():
                     df_categorical, cat_1, cat_2, bias_correction=True, tschuprow=False
                 )
                 DMR1, wDMR1, f_path_cat_2 = mor_plots(
-                    df, cat_1, response, df_data_types
+                    df, cat_2, response, df_data_types
                 )
                 cat_1c_link = f'<a href="{f_path_cat_1}">{cat_1}</a>'
                 cat_2c_link = f'<a href="{f_path_cat_2}">{cat_2}</a>'
@@ -1370,7 +1510,6 @@ def main():
 
     models(df)
     # The random forest performs better over the naive bayes !!! Both of them are not that great though!
-
     return 0
 
 
