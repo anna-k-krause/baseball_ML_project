@@ -1014,9 +1014,10 @@ def main():
     # sql connection
     # source : https://teaching.mrsharky.com/sdsu_fall_2020_lecture04.html#/7/3
     db_user = "root"
-    db_pass = "Ravens%4098"  # pragma: allowlist secret
+    db_pass = ""  # pragma: allowlist secret
+    # db_pass = "Ravens%4098"  # pragma: allowlist secret
     db_host = "localhost"
-    db_database = "baseball_2"
+    db_database = "baseball"
     connect_string = (
         f"mariadb+mariadbconnector://{db_user}:{db_pass}@"
         f"{db_host}/{db_database}"  # pragma: allowlist secret
