@@ -39,6 +39,7 @@ SELECT b.team_id
     , b.Single
     , b.Double
     , b.Triple
+    , CASE WHEN (b.finalScore + b.opponent_finalScore) >=10 THEN 1 ELSE 0 END AS high_scoring_game
 FROM team_batting_counts b
     JOIN game g
         ON b.game_id = g.game_id
@@ -68,6 +69,7 @@ SELECT a.team_id
     , COALESCE(d.Single, 0) AS joined_single
     , COALESCE(d.Double, 0) AS joined_double
     , COALESCE(d.Triple, 0) AS joined_triple
+    , COALESCE(d.high_scoring_game, 0) AS joined_hsg
 FROM z_batting_home_dates a
     LEFT JOIN z_batting_home_dates d
         ON d.team_id = a.team_id
@@ -94,6 +96,7 @@ SELECT team_id
     , SUM(joined_single) as singleSum
     , SUM(joined_double) as doubleSum
     , SUM(joined_triple) as tripleSum
+    , SUM(joined_hsg) as hsgSum
 FROM z_batting_home_last_100_dates
 GROUP BY team_id, local_date, game_id
 ;
@@ -123,6 +126,7 @@ SELECT team_id
     , (CASE WHEN abSum = 0 THEN 0 ELSE COALESCE(((singleSum + (2 * doubleSum) + (3 * tripleSum) + (4 * hrSum))
                                                      / abSum), 0) END)
     AS slug_rolling_avg
+    , COALESCE(hsgSum, 0) AS hsq_sum
 FROM z_batting_home_stats_totals
 ORDER BY team_id, local_date, game_id
 ;
@@ -143,6 +147,7 @@ SELECT team_id
     , (obp_rolling_avg + slug_rolling_avg) AS ops_rolling_avg
     , (slug_rolling_avg - ba_rolling_avg) AS iso_rolling_avg
     , ((1.8 * obp_rolling_avg) + slug_rolling_avg / 4) AS gpa_rolling_avg
+    , hsq_sum
 FROM z_batting_home_rolling_avg
 ORDER BY team_id, local_date, game_id
 ;
@@ -172,6 +177,7 @@ SELECT b.team_id
     , b.Single
     , b.Double
     , b.Triple
+    , CASE WHEN (b.finalScore + b.opponent_finalScore) >=10 THEN 1 ELSE 0 END AS high_scoring_game
 FROM team_batting_counts b
     JOIN game g
         ON b.game_id = g.game_id
@@ -199,6 +205,7 @@ SELECT a.team_id
     , COALESCE(d.Single, 0) AS joined_single
     , COALESCE(d.Double, 0) AS joined_double
     , COALESCE(d.Triple, 0) AS joined_triple
+    , COALESCE(d.high_scoring_game, 0) AS joined_hsg
 FROM z_batting_away_dates a
     LEFT JOIN z_batting_away_dates d
         ON d.team_id = a.team_id
@@ -225,6 +232,7 @@ SELECT team_id
     , SUM(joined_single) as singleSum
     , SUM(joined_double) as doubleSum
     , SUM(joined_triple) as tripleSum
+    , SUM(joined_hsg) as hsgSum
 FROM z_batting_away_last_100_dates
 GROUP BY team_id, local_date, game_id
 ;
@@ -254,6 +262,7 @@ SELECT team_id
     , (CASE WHEN abSum = 0 THEN 0 ELSE COALESCE(((singleSum + (2 * doubleSum) + (3 * tripleSum) + (4 * hrSum))
                                                      / abSum), 0) END)
     AS slug_rolling_avg
+    , COALESCE(hsgSum, 0) AS hsq_sum
 FROM z_batting_away_stats_totals
 ORDER BY team_id, local_date, game_id
 ;
@@ -274,6 +283,7 @@ SELECT team_id
     , (obp_rolling_avg + slug_rolling_avg) AS ops_rolling_avg
     , (slug_rolling_avg - ba_rolling_avg) AS iso_rolling_avg
     , ((1.8 * obp_rolling_avg) + slug_rolling_avg / 4) AS gpa_rolling_avg
+    , hsq_sum
 FROM z_batting_away_rolling_avg
 ORDER BY team_id, local_date, game_id
 ;
@@ -306,7 +316,9 @@ SELECT b.team_id
     , b.Fly_Out
     , b.Groundout
     , b.Flyout
-    , ((b.endingInning - b.startingInning) + 1) AS inningsPitched
+    , b.pitchesThrown
+    , CASE WHEN (b.outsPlayed/3) >= 6 AND Home_Run <= 3 THEN 1 ELSE 0 END AS quality_start
+    , (b.outsPlayed/3) AS inningsPitched
 FROM pitcher_counts b
     JOIN game g
         ON b.game_id = g.game_id
@@ -314,6 +326,7 @@ WHERE b.startingPitcher = 1
 AND b.homeTeam = 1
 AND b.game_id != '175660'
 ;
+
 -- Manage Primary Keys and Add Indexes
 ALTER TABLE z_pitching_home_dates ADD PRIMARY KEY (team_id, game_id), ADD INDEX team_index(team_id);
 -- joined stats on dates
@@ -332,6 +345,8 @@ SELECT a.team_id
     , COALESCE(d.Fly_Out, 0) AS joined_fo
     , COALESCE(d.Groundout, 0) AS joined_groundout
     , COALESCE(d.Flyout, 0) AS joined_flyout
+    , COALESCE(d.pitchesThrown, 0) AS joined_pt
+    , COALESCE(d.quality_start, 0) AS joined_qs
 FROM z_pitching_home_dates a
     LEFT JOIN z_pitching_home_dates d
         ON d.team_id = a.team_id
@@ -353,6 +368,8 @@ SELECT team_id
     , SUM(joined_fo) AS foSum
     , SUM(joined_groundout) as go2Sum
     , SUM(joined_flyout) as fo2Sum
+    , SUM(joined_pt) as ptSum
+    , SUM(joined_qs) as qsSum
 FROM z_pitching_home_last_100_dates
 GROUP BY team_id, local_date, game_id, inningsPitched
 ;
@@ -383,10 +400,13 @@ SELECT team_id
     AS kbb_rolling_avg
     , (CASE WHEN (foSum + fo2Sum) = 0 THEN 0 ELSE COALESCE((goSum + go2Sum) / (foSum + fo2Sum), 0) END)
     AS goao_rolling_avg
+    , (CASE WHEN walkSum = 0 THEN 0 ELSE COALESCE(strikeoutSum / ptSum, 0) END)
+    AS strikout_pt_rolling_avg
+    , COALESCE(qsSum, 0) AS qs_sum
 FROM z_pitching_home_stats_totals
 ORDER BY team_id, local_date, game_id
 ;
--- SELECT * FROM z_pitching_home_rolling_avg LIMIT 10;
+-- SELECT * FROM z_pitching_home_rolling_avg LIMIT 100;
 DROP TABLE z_pitching_home_dates, z_pitching_home_last_100_dates, z_pitching_home_stats_totals;
 
 -- away team
@@ -407,7 +427,9 @@ SELECT b.team_id
     , b.Fly_Out
     , b.Groundout
     , b.Flyout
-    , ((b.endingInning - b.startingInning) + 1) AS inningsPitched
+    , b.pitchesThrown
+    , CASE WHEN (b.outsPlayed/3) >= 6 AND Home_Run <= 3 THEN 1 ELSE 0 END AS quality_start
+    , (b.outsPlayed/3) AS inningsPitched
 FROM pitcher_counts b
     JOIN game g
         ON b.game_id = g.game_id
@@ -432,7 +454,9 @@ SELECT a.team_id
     , COALESCE(d.Ground_Out, 0) AS joined_go
     , COALESCE(d.Fly_Out, 0) AS joined_fo
     , COALESCE(d.Groundout, 0) AS joined_groundout
+    , COALESCE(d.pitchesThrown, 0) AS joined_pt
     , COALESCE(d.Flyout, 0) AS joined_flyout
+    , COALESCE(d.quality_start, 0) AS joined_qs
 FROM z_pitching_away_dates a
     LEFT JOIN z_pitching_away_dates d
         ON d.team_id = a.team_id
@@ -454,6 +478,8 @@ SELECT team_id
     , SUM(joined_fo) AS foSum
     , SUM(joined_groundout) as go2Sum
     , SUM(joined_flyout) as fo2Sum
+    , SUM(joined_pt) as ptSum
+    , SUM(joined_qs) as qsSum
 FROM z_pitching_away_last_100_dates
 GROUP BY team_id, local_date, game_id, inningsPitched
 ;
@@ -484,6 +510,9 @@ SELECT team_id
     AS kbb_rolling_avg
     , (CASE WHEN (foSum + fo2Sum) = 0 THEN 0 ELSE COALESCE((goSum + go2Sum) / (foSum + fo2Sum), 0) END)
     AS goao_rolling_avg
+    , (CASE WHEN walkSum = 0 THEN 0 ELSE COALESCE(strikeoutSum / ptSum, 0) END)
+    AS strikout_pt_rolling_avg
+    , COALESCE(qsSum, 0) AS qs_sum
 FROM z_pitching_away_stats_totals
 ORDER BY team_id, local_date, game_id
 ;
@@ -508,6 +537,7 @@ SELECT h.game_id
     , (h.slug_rolling_avg - a.slug_rolling_avg) AS rolling_slug_diff
     , (h.iso_rolling_avg - a.iso_rolling_avg) AS rolling_iso_diff
     , (h.gpa_rolling_avg - a.gpa_rolling_avg) AS rolling_gpa_diff
+    , (h.hsq_sum - a.hsq_sum) AS rolling_high_scoring_game_diff
 FROM z_batting_home_rolling_avg_ad h
 JOIN z_batting_away_rolling_avg_ad a ON h.game_id = a.game_id
 ORDER BY h.game_id
@@ -523,13 +553,15 @@ SELECT h.game_id
     , (h.bb9_rolling_avg - a.bb9_rolling_avg) AS rolling_walks_allow_diff
     , (h.h9_rolling_avg - a.h9_rolling_avg) AS rolling_hits_allow_diff
     , (h.hr9_rolling_avg - a.hr9_rolling_avg) AS rolling_homeRuns_allow_diff
-    , (h.so9_rolling_avg - a.so9_rolling_avg) AS rolling_stikeOuts_allow_diff
+    , (h.so9_rolling_avg - a.so9_rolling_avg) AS rolling_strikeOuts_allow_diff
     , (h.whip_rolling_avg - a.whip_rolling_avg) AS rolling_whip_diff
     , (h.pfr_rolling_avg - a.pfr_rolling_avg) AS rolling_pfr_diff
-    , (h.dice_rolling_avg - a.dice_rolling_avg) AS rolling_fip_diff
+    , (h.dice_rolling_avg - a.dice_rolling_avg) AS rolling_dice_diff
     , (h.walk_ratio_rolling_avg - a.walk_ratio_rolling_avg) AS rolling_walk_ratio_diff
     , (h.kbb_rolling_avg - a.kbb_rolling_avg) AS rolling_kbb_diff
     , (h.goao_rolling_avg - a.goao_rolling_avg) AS rolling_pitch_goao_diff
+    , (h.strikout_pt_rolling_avg - a.strikout_pt_rolling_avg) AS rolling_strikeout_to_pitches_thrown_diff
+    , (h.qs_sum - a.qs_sum) AS rolling_quality_start_diff
 FROM z_pitching_home_rolling_avg h
 JOIN z_pitching_away_rolling_avg a ON h.game_id = a.game_id
 ORDER BY h.game_id
@@ -554,7 +586,8 @@ SELECT game_id, stadium_id, CASE WHEN HOUR(local_date) >= 19 THEN 'night' ELSE '
 FROM game
 ORDER BY game_id
 ;
--- source : https://www.fantasylabs.com/articles/mlb-day-games-vs-night-games/#:~:text=For%20the%20purposes%20of%20this,00%20pm%20ET%20or%20later.
+-- source : https://www.fantasylabs.com/articles/mlb-day-games-vs-night-games/#:~:text=For%20the%20purposes%20of
+-- %20this,00%20pm%20ET%20or%20later.
 
 CREATE OR REPLACE TABLE z_game_line_prep AS
 SELECT game_id, home_line, away_line
@@ -583,37 +616,24 @@ WHERE game_temp <= 150
 ORDER BY game_id
 ;
 
-
-CREATE OR REPLACE TABLE z_game_score_prep
-SELECT game_id
-    , CASE WHEN (finalScore + opponent_finalScore) >=10 THEN 'high' ELSE 'low' END AS game_scoring
-FROM team_batting_counts
-WHERE homeTeam = 1
-;
 -- 5 runs per team is considered a high scoring game
 -- https://tht.fangraphs.com/runs-per-game/
 
-CREATE OR REPLACE TABLE z_qs_stats AS
-select game_id, ((endingInning - startingInning) + 1) AS inningsPitched, Home_Run
-       from pitcher_counts
-       WHERE startingPitcher = 1
-AND homeTeam = 1
-AND game_id != '175660'
-;
-CREATE OR REPLACE TABLE z_qs_prep AS
-SELECT game_id, CASE WHEN inningsPitched >= 6 AND Home_Run <= 3 THEN 1 ELSE 0 END AS quality_start
-FROM z_qs_stats
-ORDER by game_id;
 
--- SELECT quality_start, count(*) FROM z_qs_stats group by 1 limit 100;
+-- checks that wins are valid in team_batter_counts
+SELECT win,
+       CASE WHEN (finalScore > opponent_finalScore) THEN 1 ELSE 0 END AS win_check,
+       COUNT(*)
+from team_batting_counts
+where homeTeam = 1
+group by 1,2
+limit 100;
 
 ALTER TABLE z_batting_data ADD PRIMARY KEY (game_id), ADD INDEX game_index(game_id);
 ALTER TABLE z_pitching_data ADD PRIMARY KEY (game_id), ADD INDEX game_index(game_id);
 ALTER TABLE z_game_time_prep ADD PRIMARY KEY (game_id), ADD INDEX game_index(game_id);
 -- ALTER TABLE z_game_line_prep ADD PRIMARY KEY (game_id), ADD INDEX game_index(game_id);
 ALTER TABLE z_game_env_prep ADD PRIMARY KEY (game_id), ADD INDEX game_index(game_id);
-ALTER TABLE z_game_score_prep ADD PRIMARY KEY (game_id), ADD INDEX game_index(game_id);
-ALTER TABLE z_qs_prep ADD PRIMARY KEY (game_id), ADD INDEX game_index(game_id);
 
 CREATE OR REPLACE TABLE AAA_final AS
 SELECT t.game_id
@@ -629,36 +649,35 @@ SELECT t.game_id
     , b.rolling_slug_diff
     , b.rolling_iso_diff
     , b.rolling_gpa_diff
+    , b.rolling_high_scoring_game_diff
     , p.rolling_walks_allow_diff
     , p.rolling_hits_allow_diff
     , p.rolling_homeRuns_allow_diff
-    , p.rolling_stikeOuts_allow_diff
+    , p.rolling_strikeOuts_allow_diff
     , p.rolling_whip_diff
     , p.rolling_pfr_diff
-    , p.rolling_fip_diff
+    , p.rolling_dice_diff
     , p.rolling_walk_ratio_diff
     , p.rolling_kbb_diff
     , p.rolling_pitch_goao_diff
+    , p.rolling_strikeout_to_pitches_thrown_diff
+    , p.rolling_quality_start_diff
     , gt.stadium_id
     , gt.game_time
     , e.game_environment
     , e.game_temp
     , e.game_weather
     , e.game_winddir
-    , s.game_scoring
-    , q.quality_start
 FROM team_batting_counts t
 LEFT JOIN z_batting_data b ON t.game_id = b.game_id
 LEFT JOIN z_pitching_data p ON t.game_id = p.game_id
 LEFT JOIN z_game_time_prep gt ON t.game_id = gt.game_id
 LEFT JOIN z_game_env_prep e ON t.game_id = e.game_id
-LEFT JOIN z_game_score_prep s ON t.game_id = s.game_id
-LEFT JOIN z_qs_prep q ON t.game_id = q.game_id
 WHERE t.homeTeam = 1
 ORDER BY t.game_id
 ;
 
--- SELECT * FROM AAA_final LIMIT 100;
+-- SELECT * FROM AAA_final LIMIT 500;
 
 
 

@@ -1,0 +1,9 @@
+numpy
+pandas
+plotly
+scikit-learn
+seaborn
+mariadb
+pyspark
+statsmodels
+sqlalchemy

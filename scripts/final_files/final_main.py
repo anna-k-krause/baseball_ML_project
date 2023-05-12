@@ -71,7 +71,6 @@ def mor_plots(df, predictor, response, df_data_types):
         # source : https://linuxhint.com/python-numpy-histogram/
         # source : https://stackoverflow.com/questions/72688853/get-center-of-bins-histograms-python
         # source : https://stackoverflow.com/questions/34317149/pandas-groupby-with-bin-counts
-        # amount = df[df[response] == 1].shape[0] -- old
         amount = sum(df[response])
         mean_pop = amount / count
         bin_count = 10
@@ -165,7 +164,6 @@ def mor_plots(df, predictor, response, df_data_types):
 
     else:
         # find plots and values for categorical predictors
-        # amount = df[df[response] == 1].shape[0] -- old
         amount = sum(df[response])
         mean_pop = amount / count
         bin_count = len(np.sort(df[predictor].unique()))
@@ -846,47 +844,37 @@ def models(df):
         "rolling_slug_diff",
         "rolling_iso_diff",
         "rolling_gpa_diff",
+        "rolling_high_scoring_game_diff",
         "rolling_walks_allow_diff",
         "rolling_hits_allow_diff",
         "rolling_homeRuns_allow_diff",
-        "rolling_stikeOuts_allow_diff",
+        "rolling_strikeOuts_allow_diff",
         "rolling_whip_diff",
         "rolling_pfr_diff",
-        "rolling_fip_diff",
+        "rolling_dice_diff",
         "rolling_walk_ratio_diff",
         "rolling_kbb_diff",
         "rolling_pitch_goao_diff",
+        "rolling_strikeout_to_pitches_thrown_diff",
+        "rolling_quality_start_diff",
+        "game_temp",
     ]
 
     categorical_features = [
         "stadium_id",
         "game_time",
         "game_environment",
-        "game_temp",
         "game_weather",
         "game_winddir",
-        "game_scoring",
-        "quality_start",
     ]
-
-    numeric_features_clean = [
-        "rolling_walks_allow_diff",
-        "rolling_hits_allow_diff",
-        "rolling_homeRuns_allow_diff",
-        "rolling_stikeOuts_allow_diff",
-        "rolling_whip_diff",
-        "rolling_pfr_diff",
-        "rolling_fip_diff",
-    ]
-    categorical_features_clean = ["stadium_id", "quality_start"]
 
     numeric_transformer = Pipeline(steps=[("scaler", StandardScaler())])
     categorical_transformer = OneHotEncoder(handle_unknown="ignore")
 
     preprocessor = ColumnTransformer(
         transformers=[
-            ("num", numeric_transformer, numeric_features_clean),
-            ("cat", categorical_transformer, categorical_features_clean),
+            ("num", numeric_transformer, numeric_features),
+            ("cat", categorical_transformer, categorical_features),
         ],
         sparse_threshold=0,
     )
@@ -944,49 +932,34 @@ def models(df):
             "rolling_slug_diff",
             "rolling_iso_diff",
             "rolling_gpa_diff",
+            "rolling_high_scoring_game_diff",
             "rolling_walks_allow_diff",
             "rolling_hits_allow_diff",
             "rolling_homeRuns_allow_diff",
-            "rolling_stikeOuts_allow_diff",
+            "rolling_strikeOuts_allow_diff",
             "rolling_whip_diff",
             "rolling_pfr_diff",
-            "rolling_fip_diff",
+            "rolling_dice_diff",
             "rolling_walk_ratio_diff",
             "rolling_kbb_diff",
             "rolling_pitch_goao_diff",
+            "rolling_strikeout_to_pitches_thrown_diff",
+            "rolling_quality_start_diff",
             "stadium_id",
             "game_time",
             "game_environment",
             "game_temp",
             "game_weather",
             "game_winddir",
-            "game_scoring",
-            "quality_start",
-        ]
-    ]
-
-    x_orig_clean = df[
-        [
-            "rolling_walks_allow_diff",
-            "rolling_hits_allow_diff",
-            "rolling_homeRuns_allow_diff",
-            "rolling_stikeOuts_allow_diff",
-            "rolling_whip_diff",
-            "rolling_pfr_diff",
-            "rolling_fip_diff",
-            "stadium_id",
-            "quality_start",
         ]
     ]
 
     # Setting the target
     y = df[["HomeTeamWins"]]
 
-    print(x_orig.type(), numeric_features, categorical_features)
-
     # Split (in order of game_id, so we will predict on the last 20% of games)
     x_train, x_test, y_train, y_test = train_test_split(
-        x_orig_clean, y, test_size=0.20, shuffle=False
+        x_orig, y, test_size=0.20, shuffle=False
     )
 
     clf.fit(x_train, np.ravel(y_train))
@@ -1060,8 +1033,6 @@ def main():
     df_pred_only = df.drop(columns=["game_id", "HomeTeamWins"])
     predictors = list(df_pred_only.columns.values)
 
-    # print(df, predictors, response)
-    # print(df[df.isna().any(axis=1)])
     df = df.dropna(axis=0)
     df = df.reset_index(drop=True)
     # I decided to drop these rows because there were only 9 rows with missing data, most of them pitching stats
@@ -1121,7 +1092,7 @@ def main():
     # write main output file to put data in
     f = open("Output_Plots/AAA_final_output.html", "w")
 
-    print_heading("Homework 4 Section")
+    print_heading("Initial Feature Findings")
     # create final dataset for the printout
     df_hw4 = pd.DataFrame(
         columns=[
@@ -1165,15 +1136,15 @@ def main():
         df_hw4, importance_df, how="left", left_on="Predictor", right_on="Pred"
     )
     clean_df = merged_df.drop("Pred", axis=1)
-    print(clean_df.head(20))
+    clean_df_revis = clean_df.sort_values(by=["wDMR"], ascending=False)
 
-    res = clean_df.to_html(
+    res = clean_df_revis.to_html(
         render_links=True,
         escape=False,
     )
     f.write(res)
 
-    print_heading("Continuous/Continuous")
+    print_heading("Continuous/Continuous Correlations")
     # create dataset for the printout
     df_cont_cont = pd.DataFrame(
         columns=["cont_1", "cont_2", "pearson_corr", "cont_1_url", "cont_2_url"]
@@ -1216,7 +1187,7 @@ def main():
     f.write("Continuous/Continuous Correlations" + "\n")
     f.write(cont_link + "\n")
 
-    print_heading("Categorical/Categorical")
+    print_heading("Categorical/Categorical Correlations")
     # create final dataset for the printout
     df_cat_cat_cramer = pd.DataFrame(
         columns=["cat_1", "cat_2", "cramer_corr", "cat_1_url", "cat_2_url"]
@@ -1308,7 +1279,7 @@ def main():
     f.write("Categorical/Categorical Tschuprow Correlations" + "\n")
     f.write(tschuprow_link + "\n")
 
-    print_heading("Categorical/Continuous")
+    print_heading("Categorical/Continuous  Correlations")
     df_cat_cont = pd.DataFrame(
         columns=["p_cat", "p_cont", "corr", "cat_url", "cont_url"]
     )
@@ -1507,9 +1478,12 @@ def main():
     f.write(res_cat_cont_bf + "\n")
 
     f.close()
-
+    print_heading("Model Results with All the Features ")
     models(df)
-    # The random forest performs better over the naive bayes !!! Both of them are not that great though!
+
+    # results were GBT with the best score of .6797 and Random Forest with .6730
+    # I tested with fewer features, and each time the model performance was worse with
+    # fewer features, so I kept them all
     return 0
 
 
