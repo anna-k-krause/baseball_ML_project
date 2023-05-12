@@ -66,4 +66,6 @@ My initial findings with a features showed that the roc_auc score was highest fo
 
 I also set up docker and docker-compose for all of my work to attempt to retain the same environment for others to test their work and end up with the same results. Thanks for reading! -Anna 
 
+<img width="343" alt="Screenshot 2023-05-12 at 2 26 59 PM" src="https://github.com/anna-k-krause/bda_602/assets/53878175/e222468b-c8af-4340-92f9-9c7143594e51">
+
 
